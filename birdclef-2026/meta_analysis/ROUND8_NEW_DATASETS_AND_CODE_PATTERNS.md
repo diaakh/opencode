@@ -212,6 +212,92 @@ def sweep_ensemble_weight(oof_proto, oof_mlp, Y_FULL, candidates=np.arange(0.3, 
 
 Sweeps the proto/MLP blend weight on OOF and picks the best by macro-AUC. **The optimal is ~0.6 proto / 0.4 MLP**, matching the 60/40 imaadmahmood baseline.
 
+## 6.5 The ROOT-OF-EVERYTHING: `marynaborovska/birdclef-26-two-pass-ssm-advanced-pp`
+
+After tracing 40 corpus kernels that cite Maryna Borovska, this is the **single canonical source notebook** for the entire 0.946–0.949 PLATEAU recipe. Every novel post-processing technique in the popular template traces back here. The notebook ships:
+
+### 6.5a. The genus-proxy fallback for unmapped species (the only public attempt at the missing 28)
+
+```python
+# For each competition species NOT in Perch's 14,795-vocabulary
+proxy_map = {}
+for _, row in unmapped_df.iterrows():
+    target = row["primary_label"]
+    genus  = str(row["scientific_name"]).split()[0]   # binomial first word
+    hits   = bc_labels[bc_labels["scientific_name"].astype(str)
+                       .str.match(rf"^{_re.escape(genus)}\s", na=False)]
+    if len(hits) > 0:
+        proxy_map[label_to_idx[target]] = hits["bc_index"].astype(int).tolist()
+
+# Restrict to taxa where genus-level audio similarity is biologically plausible
+proxy_map = {idx: bc for idx, bc in proxy_map.items()
+             if CLASS_NAME_MAP.get(PRIMARY_LABELS[idx]) in {"Amphibia", "Insecta", "Aves"}}
+
+# AT INFERENCE — fill unmapped logit slots with MAX over genus members
+for pos_idx, bc_idxs in proxy_map.items():
+    bc_arr = np.array(bc_idxs, dtype=np.int32)
+    scores[br:wr, pos_idx] = logits[:, bc_arr].max(axis=1)
+```
+
+**Reality check** on what this rescues from the 28 missing-from-train classes:
+- 3 frogs (`1491113` Adenomera guarani, `25073` Chiasmocleis mehelyi, `517063` Pithecopus azureus): genus matches **if and only if** Perch was trained on at least one congener. Pantanal-region Adenomera and Pithecopus species exist in iNaturalist → likely yes for Adenomera, partial for the rest.
+- 25 insect sonotypes (`47158son01-25`): scientific name is literally `Insect son01` → genus is `Insect` → **zero matches in Perch**. Genus proxy gives nothing for sonotypes.
+
+So genus proxy lifts perhaps 3 of 28 missing classes; the 25 sonotypes still float at chance until you actually train on the `train_soundscapes_labels.csv` ground truth (or pseudo-labels on the larger unlabeled set).
+
+### 6.5b. Class-specific temperature (the inverse of what intuition suggests)
+
+```python
+CLASS_NAME_MAP = taxonomy.set_index("primary_label")["class_name"].to_dict()
+TEXTURE_TAXA   = {"Amphibia", "Insecta"}
+temperatures = np.ones(N_CLASSES, dtype=np.float32)
+for ci, label in enumerate(PRIMARY_LABELS):
+    cls = CLASS_NAME_MAP.get(label, "Aves")
+    temperatures[ci] = 0.95 if cls in TEXTURE_TAXA else 1.10
+# Apply via:  logits = logits / temperatures
+```
+
+Note: T=0.95 (frogs/insects) makes their logit distribution SHARPER (more confident extremes); T=1.10 (birds) softens them. This is the OPPOSITE of typical calibration — but it works here because the texture-class predictions are mostly genus-proxy (max over multiple Perch labels), which already creates "lukewarm" probabilities. Sharpening pulls them away from the 0.5 line where macro-AUC ranking is least informative.
+
+### 6.5c. The five core post-processing functions (all originate here)
+
+```python
+# 1. file_confidence_scale — chaneyma's "top-2 amplification" is THIS function (top_k=2, power=0.4)
+def file_confidence_scale(probs, n_windows=12, top_k=2, power=0.4):
+    view = probs.reshape(-1, n_windows, C)
+    top_k_mean = np.sort(view, axis=1)[:, -top_k:, :].mean(axis=1, keepdims=True)
+    return (view * np.power(top_k_mean, power)).reshape(N, C)
+
+# 2. rank_aware_scaling(probs, n_windows=12, power=0.4)  — multiplies by file_max^0.4
+
+# 3. adaptive_delta_smooth — alpha adapts to per-window confidence
+def adaptive_delta_smooth(probs, n_windows=12, base_alpha=0.20):
+    for t in range(n_windows):
+        conf  = view[:, t, :].max(axis=-1, keepdims=True)
+        alpha = base_alpha * (1.0 - conf)
+        # blend with neighbor average
+        out[:, t, :] = (1-alpha)*view[:, t, :] + alpha*neighbor_avg
+
+# 4. Circular shift TTA over [0, 1, -1, 2, -2] windows, counter-shift and average
+
+# 5. Isotonic + F1-optimal threshold per class on OOF
+```
+
+The fact that chaneyma's `pantanal_infer_only_submission.py` uses fixed `0.8*curr + 0.1*(prev+next)` smoothing instead of Maryna's adaptive version is actually a SIMPLIFICATION. Maryna's version is strictly better for confident windows (preserves peaks).
+
+### 6.5d. The honest CV protocol
+
+```python
+GroupKFold(n_splits=5)  # grouped by filename
+macro_auc_skip_empty(file_y, blended.max(axis=1))  # exact comp metric
+```
+
+**filename as group** prevents within-file leakage (all 12 windows from the same 60s file go to the same fold). The CV metric is the **exact** competition `roc_auc_score(average="macro")`, with the explicit skip-classes-with-zero-positives matching what Kaggle does. Most public kernels use plain KFold and silently inflate their CV by ~0.01.
+
+### 6.5e. Why this matters for the user
+
+The "EoS-3 → EoS-4 → exp019" chain that produces the 0.949 LB is a tuning of Maryna's hyperparameters: `rank_power 0.4→0.5→0.6` and `lambda_prior 0.4→0.5`. **Without modifying her recipe**, you've already topped out at 0.949. The PLATEAU is hers.
+
 ## 7. The ELITE 0.95+ "anti-pattern" vs PLATEAU 0.948–0.95
 
 Computing feature shares across our 1,194-kernel corpus:
