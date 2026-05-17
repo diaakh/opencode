@@ -87,5 +87,36 @@
     "mean_species_per_segment": 4.2246278755074425,
     "pct_multi_label": 89.44519621109607,
     "max_species_in_one_segment": 10
+  },
+  "deep": {
+    "low_resource_species": {
+      "le_1_clips": 4,
+      "le_5_clips": 18,
+      "le_10_clips": 27,
+      "le_20_clips": 36,
+      "le_30_clips": 45,
+      "le_50_clips": 52,
+      "le_100_clips": 83
+    },
+    "species_geographic": {
+      "species_with_any_pantanal_clip": 119,
+      "species_with_ge10_pantanal_clips": 31,
+      "species_with_ge50pct_in_pantanal": 4
+    },
+    "audio_hours_per_class": {
+      "Amphibia": 3.3476458343808155,
+      "Aves": 330.2958174158459,
+      "Insecta": 1.54677882178651,
+      "Mammalia": 1.013048854702216,
+      "Reptilia": 0.002455767374820605
+    },
+    "labeled_soundscape_sites_covered": 9,
+    "labeled_soundscape_hour_uniques": 13,
+    "rows_with_secondary_labels": 4372,
+    "missing_species_appearing_in_secondary": 0,
+    "soundscape_cooccurrence_pairs": 426,
+    "submission_rows": 3,
+    "submission_unique_files": 1,
+    "submission_rows_per_file": 3.0
   }
 }

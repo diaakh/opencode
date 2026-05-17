@@ -265,6 +265,183 @@ Independent context from public Kaggle write-ups and discussion. Sources at end.
 
 ---
 
+## 9. DEEP-EDA ADDENDUM (run by `deep_analyze.py`)
+
+These were not visible in the first pass.
+
+### 9.1 Audio-TIME imbalance is **far worse** than clip-count imbalance
+
+Estimated total hours of `train_audio` per class (file-size proxy, bytes/sec
+calibrated from the duration sample):
+
+| class    | hours | ratio vs Aves |
+| :------- | ----: | :- |
+| Aves     | **330.3** | 1× |
+| Amphibia |   3.3 | 1:100 |
+| Insecta  |   1.5 | 1:220 |
+| Mammalia |   1.0 | 1:330 |
+| Reptilia |  ~0   | — |
+
+A `class_weight cap=10×` is **far too soft**. Even unbounded class-frequency
+weighting only partly corrects this; stratified per-batch sampling is
+necessary so each batch sees non-Aves classes.
+
+![hours per class](plots/d05_audio_hours_per_class.png)
+
+### 9.2 Low-resource species — how many are starved
+
+Of 206 species with any `train_audio`:
+
+| threshold | # species with ≤ that many clips |
+| :- | -: |
+| ≤ 1 clip   | 1 |
+| ≤ 5 clips  | 8 |
+| ≤ 10 clips | 22 |
+| ≤ 20 clips | 41 |
+| ≤ 30 clips | 53 |
+| ≤ 50 clips | 71 |
+| ≤ 100 clips | 95 |
+
+(Reproduced from `summary.json["deep"]["low_resource_species"]`.)
+
+Roughly **half of all species with any audio have ≤100 clips** — and Aves
+dominates the top of the distribution.
+
+![ECDF per class](plots/d01_clips_ecdf.png)
+
+### 9.3 Species co-occurrence in labeled segments
+
+Built the **75 × 75 species co-occurrence matrix** (`stats/soundscape_cooccurrence.csv`)
+and top pairs (`stats/soundscape_top_cooccurrences.csv`). Insect sonotypes
+form tight chorus clusters — visually obvious in the heatmap. This is the
+direct evidence behind the EoS.3 "sonotype mirroring" gate.
+
+![co-occurrence](plots/d02_cooccurrence_heatmap.png)
+![sonotype co-occurrence](plots/d03_sonotype_cooccurrence.png)
+
+Insect sonotype labeled-segment counts (all 25 covered):
+
+| top sonotypes | segments |
+| :- | -: |
+| son25 | 84 |
+| son17 | 43 |
+| son13 | 36 |
+| son24 | 24 |
+| son22 | 24 |
+| son23 | 24 |
+| son21 | 22 |
+| son14 | 12 |
+| son15 | 12 |
+| son16 | 12 |
+| son18 | 12 |
+| son20 | 12 |
+| son12 |  5 |
+| son19 |  5 |
+
+### 9.4 Per-species Pantanal coverage is uneven
+
+Surprisingly, **119 / 202 species (58.9%) have at least one Pantanal-box clip**
+(better than the raw 2.38% headline suggests). But:
+
+| threshold | # species |
+| :- | -: |
+| ≥ 1 Pantanal clip | 119 |
+| ≥ 10 Pantanal clips | 31 |
+| ≥ 50% of clips in Pantanal | 4 |
+
+So **31 species** could serve as in-region anchors for any geographic prior.
+Per-species spread saved in `stats/species_geographic_spread.csv`.
+
+![species Pantanal coverage](plots/d04_species_pantanal_coverage.png)
+
+### 9.5 Labeled soundscape coverage — sparse and **biased nocturnal**
+
+`train_soundscapes_labels.csv` only covers **9 of 23 recording sites** and
+**hours 00–07 + 18–23 only** (zero daytime labels):
+
+| labeled site | files |
+| :- | -: |
+| S22 | 40 |
+| S08 | 5 |
+| S09 | 5 |
+| S15 | 4 |
+| S19 | 3 |
+| S23 | 3 |
+| S13 | 2 |
+| S18 | 2 |
+| S03 | 2 |
+
+Sites never labeled: **S01, S02, S04–S07, S10–S12, S14, S16, S17, S20, S21.**
+
+Date range: **2021-10-16 → 2025-08-31**, only **51 unique dates** across 66 files.
+
+![labeled vs all sites/hours](plots/d06_labeled_vs_all_sites_hours.png)
+
+Acoustic richness (mean species per 5-s segment) peaks at hour **19 UTC**
+(6.2 species/segment) and is lowest at midnight UTC (2.6).
+
+![hour richness](plots/d09_hour_richness.png)
+
+> Implication: any "site×hour prior" fit on these labels has gaping holes.
+> Test-time sites/hours that fall in unlabeled cells should fall back to a
+> neutral prior — verify your pipeline doesn't extrapolate from a tiny
+> labeled cell into an unsupported one.
+
+### 9.6 Secondary labels are present but DON'T cover the 28 missing classes
+
+- 4,372 / 35,549 train rows (12.3%) carry secondary labels.
+- 161 unique species appear as secondary labels.
+- **Zero of the 28 missing-from-train_audio species appear as secondary labels.**
+
+So you cannot recover the 28 missing classes via secondary labels — they exist
+only as 5-s soundscape segments. Top secondary mentions are common Pantanal
+birds (Great Kiskadee 624, White-tipped Dove 468, Undulated Tinamou 315).
+
+### 9.7 Rating distribution per class (XC clips only)
+
+| class | n_xc | mean rating | % rated |
+| :- | -: | -: | -: |
+| Aves     | 22,952 | 4.01 | 98.5 % |
+| Amphibia |    58  | 4.22 | 100 % |
+| Mammalia |    33  | 3.59 | 100 % |
+
+Filtering by `rating > 0` is essentially equivalent to "drop iNat" for birds
+(98.5% of XC birds are rated). For the long tail of amphibians and mammals
+the rating signal exists but the sample is tiny.
+
+![rating per class XC](plots/d08_rating_per_class_xc.png)
+
+### 9.8 Sample submission is a stub
+
+`sample_submission.csv` only has **3 rows / 1 file** locally. The real test
+data (~600 soundscapes → ~7,200 rows) only materializes when the notebook is
+submitted, mounted at `/kaggle/input/birdclef-2026/test_soundscapes/`.
+
+### 9.9 Code-vs-EDA review
+
+See [CODE_REVIEW.md](CODE_REVIEW.md) — line-by-line comparison of the user's
+0.947 submission (Nina EoS.3 = Model_3 + Model_9 ensemble) against every
+finding above. Headlines:
+
+- ✅ Dedupes labels at L263; ✅ uses 32 kHz, 5-s windows, 12 windows per file
+  matching the data exactly; ✅ uses focal loss + mixup/cutmix; ✅ has
+  per-taxon temperature scaling and site/hour prior; ✅ does sonotype mirroring.
+- ⚠️ Only mirrors 9 of 25 sonotypes (data-driven grouping from the
+  co-occurrence matrix would expand this).
+- ❌ `latitude` / `longitude` are completely unused (0 occurrences). No
+  Pantanal-distance feature. Big lever left on the table.
+- ❌ No noisy-student / pseudo-label loop on the 10,592 unlabeled soundscapes
+  in Model_9 — exactly the BirdCLEF 2025 1st-place trick.
+- ⚠️ `cap=10` for class-frequency weights is too soft against a 100–330×
+  audio-time imbalance.
+- ⚠️ Labeled site/hour priors cover only ~half of sites and zero daytime
+  hours — graceful OOD fallback needs to be verified.
+- ⚠️ Unclear whether `LightProtoSSM.init_prototypes` falls back to labeled
+  soundscape segments for the 28 classes without train_audio. Worth a direct
+  inspection.
+
+---
+
 ## Sources (online research)
 
 - [BirdCLEF+ 2025 — 1st place: Multi-Iterative Noisy Student (Nikita Babych)](https://www.kaggle.com/competitions/birdclef-2025/writeups/nikita-babych-1st-place-solution-multi-iterative-n)
