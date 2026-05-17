@@ -43,7 +43,10 @@ while true; do
       *COMPLETE*|*COMPLETED*)
         DONE[$slug]="complete"
         echo "$(date -u +'%H:%M:%S')  $slug COMPLETED — submitting..." >> "$LOG"
-        result=$(kaggle competitions submit birdclef-2026 -k adkasd/$slug -v 1 -f submission.csv -m "${MESSAGES[$i]}" 2>&1)
+        # Determine latest version (sub2 is on v2, others on v1)
+        ver=1
+        if [[ "$slug" == "birdclef-2026-sub2-bruce-standalone" ]]; then ver=2; fi
+        result=$(kaggle competitions submit birdclef-2026 -k adkasd/$slug -v $ver -f submission.csv -m "${MESSAGES[$i]}" 2>&1)
         echo "$result" >> "$LOG"
         SUBMITTED[$slug]="yes"
         ;;

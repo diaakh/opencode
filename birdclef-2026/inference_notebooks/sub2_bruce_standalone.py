@@ -27,14 +27,22 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 
-# Install ONNX runtime from bundled wheel (the assets bundle ships it)
+# Install ONNX runtime from bundled wheel
 import subprocess
 
 ASSETS_DIR_CANDIDATES = list(Path("/kaggle/input").rglob("clip_student_bundle.pkl"))
 assert ASSETS_DIR_CANDIDATES, "Attach brucewu1200/birdclef-2026-cvlb-assets-0911"
 ASSETS_DIR = ASSETS_DIR_CANDIDATES[0].parent
 
-import onnxruntime as ort  # noqa  (Kaggle base image already ships it)
+# Kaggle base image does NOT ship onnxruntime — install from bundled wheel
+try:
+    import onnxruntime as ort  # noqa
+except ImportError:
+    whl_candidates = list(Path("/kaggle/input").rglob("onnxruntime-*.whl"))
+    assert whl_candidates, "No onnxruntime wheel found in /kaggle/input — attach perch-v2-no-dft-onnx"
+    print(f"Installing onnxruntime from {whl_candidates[0]}")
+    subprocess.check_call(["pip", "install", "-q", str(whl_candidates[0])])
+    import onnxruntime as ort  # noqa
 
 EPS = 1e-7
 
