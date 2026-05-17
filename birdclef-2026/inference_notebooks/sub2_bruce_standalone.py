@@ -126,24 +126,32 @@ def chunk_5sec_windows(y, expected=12):
 
 
 # ----------------------------------------------------------------------------
-# Inference
+# Inference — batched across files (12 windows × BATCH_FILES per ONNX call)
 # ----------------------------------------------------------------------------
-def perch_predict_file(y_windows):
-    """Run Perch on each 5s window. Return (12, 1536), (12, 234)."""
-    embs = []
-    logits = []
-    for w in y_windows:
-        ins = {perch_inputs[0]: w[None, :].astype(np.float32)}
-        outs = perch_sess.run(None, ins)
-        # Outputs: embedding (1, 1536), logits (1, 234) usually
-        emb_arr = outs[0].reshape(-1)
-        logit_arr = outs[1].reshape(-1) if len(outs) > 1 else None
-        embs.append(emb_arr[:1536])
-        if logit_arr is None or logit_arr.shape[0] != 234:
-            # Fallback: assume only embedding; logits zero
-            logit_arr = np.zeros(234, dtype=np.float32)
-        logits.append(logit_arr)
-    return np.stack(embs), np.stack(logits)
+import concurrent.futures
+
+N_WINDOWS = 12
+BATCH_FILES = 8   # 8 files * 12 windows = 96-sample ONNX batch per call
+
+
+def perch_predict_batch(x):
+    """x: (N, 160000) float32 → returns (N, 1536) emb, (N, 234) logits."""
+    outs = perch_sess.run(None, {perch_inputs[0]: x})
+    # Detect which output is embedding vs logits by last dim
+    emb, logit = None, None
+    for o in outs:
+        a = np.asarray(o)
+        if a.ndim == 2 and a.shape[1] == 1536:
+            emb = a.astype(np.float32)
+        elif a.ndim == 2 and a.shape[1] == 234:
+            logit = a.astype(np.float32)
+    if emb is None:
+        emb = np.asarray(outs[0], dtype=np.float32).reshape(x.shape[0], -1)[:, :1536]
+    if logit is None:
+        # Some Perch v2 ONNX outputs (1, 234) per single sample, or (N, 1536) only
+        # If no 234-class output, build zeros (Ridge alone covers it)
+        logit = np.zeros((x.shape[0], 234), dtype=np.float32)
+    return emb, logit
 
 
 def bruce_pipeline_predict(emb, logit):
@@ -157,7 +165,7 @@ def bruce_pipeline_predict(emb, logit):
 
 
 # ----------------------------------------------------------------------------
-# Main loop
+# Main loop — concurrent audio IO + batched Perch ONNX
 # ----------------------------------------------------------------------------
 samp = pd.read_csv(SAMPLE_SUB_PATH)
 class_cols = [c for c in samp.columns if c != "row_id"]
@@ -171,45 +179,80 @@ if len(test_files) == 0:
     out_df.to_csv("submission.csv", index=False)
     sys.exit(0)
 
-print(f"Processing {len(test_files)} test soundscapes...")
-row_ids_all = []
-prob_all = []
+print(f"Processing {len(test_files)} test soundscapes (batch_files={BATCH_FILES})...")
+
+# Pre-compute per-hour prior arrays (24 × 234) aligned to class_cols
+hour_prior_arr = np.zeros((24, 234), dtype=np.float64)
+for h in range(24):
+    if h in hour_prior_df.index:
+        hour_prior_arr[h] = hour_prior_df.loc[h].reindex(class_cols).fillna(0.0).to_numpy()
+hour_prior_arr = np.clip(hour_prior_arr, EPS, 1.0)
+log_hour_prior = np.log(hour_prior_arr)  # (24, 234)
 
 # Filename: BC2026_Test_0001_S05_20250227_010002 → take last 6-digit group as HHMMSS
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-t0 = time.time()
-for fi, fpath in enumerate(test_files):
-    y = load_audio(fpath)
-    yw = chunk_5sec_windows(y, expected=12)
-    emb, logit = perch_predict_file(yw)
-    bruce_logits = bruce_pipeline_predict(emb, logit)  # (12, 234)
-    # hour from filename — match HHMMSS at end of stem
-    m = ROW_RE.search(fpath.stem)
-    hour = int(m.group(2)[:2]) if m else 0
-    # apply hour prior in logit space
-    if hour in hour_prior_df.index:
-        prior = hour_prior_df.loc[hour].reindex(class_cols).fillna(0.0).to_numpy(dtype=np.float64)
-        prior = np.clip(prior, EPS, 1.0)
-        log_prior = np.log(prior)
-        bruce_logits = bruce_logits + 3.0 * log_prior[None, :]
-    prob = 1.0 / (1.0 + np.exp(-bruce_logits))
-    prob = np.clip(prob, 0.0, 1.0).astype(np.float32)
-    # row_ids
-    stem = fpath.stem
-    for i, w in enumerate(yw):
-        end = (i + 1) * WIN_SEC
-        row_ids_all.append(f"{stem}_{end}")
-    prob_all.append(prob)
 
-    if (fi + 1) % 50 == 0:
-        elapsed = time.time() - t0
-        rate = (fi + 1) / max(elapsed, 1.0)
-        eta = (len(test_files) - fi - 1) / max(rate, 0.01)
-        print(f"  [{fi+1}/{len(test_files)}] elapsed={elapsed:.0f}s rate={rate:.1f} files/s eta={eta:.0f}s")
+def load_and_chunk(path):
+    y = load_audio(path)
+    yw = chunk_5sec_windows(y, expected=N_WINDOWS)
+    return path, yw
+
+
+row_ids_all = []
+prob_all = []
+t0 = time.time()
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    # Prefetch first batch
+    next_batch = test_files[:BATCH_FILES]
+    next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+
+    for start in range(0, len(test_files), BATCH_FILES):
+        # Collect current batch's audio
+        batch_results = [f.result() for f in next_futures]
+        # Prefetch next batch in parallel with the ONNX call
+        next_start = start + BATCH_FILES
+        if next_start < len(test_files):
+            next_batch = test_files[next_start:next_start + BATCH_FILES]
+            next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+
+        # Stack into one big (B*12, 160000) tensor
+        batch_n = len(batch_results)
+        x = np.empty((batch_n * N_WINDOWS, SAMPS), dtype=np.float32)
+        for bi, (_, yw) in enumerate(batch_results):
+            x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
+
+        # One ONNX call for the whole batch
+        emb, logit = perch_predict_batch(x)
+        bruce_logits = bruce_pipeline_predict(emb, logit)  # (B*12, 234)
+
+        # Per-file: hour prior + row_ids
+        for bi, (fpath, _) in enumerate(batch_results):
+            s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
+            file_logits = bruce_logits[s]
+            m = ROW_RE.search(fpath.stem)
+            hour = int(m.group(2)[:2]) if m else 0
+            if 0 <= hour < 24:
+                file_logits = file_logits + 3.0 * log_hour_prior[hour][None, :]
+            prob = 1.0 / (1.0 + np.exp(-file_logits))
+            prob = np.clip(prob, 0.0, 1.0).astype(np.float32)
+            stem = fpath.stem
+            for i in range(N_WINDOWS):
+                row_ids_all.append(f"{stem}_{(i + 1) * WIN_SEC}")
+            prob_all.append(prob)
+
+        done = start + batch_n
+        if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
+            elapsed = time.time() - t0
+            rate = done / max(elapsed, 1.0)
+            eta = (len(test_files) - done) / max(rate, 0.01)
+            print(f"  [{done}/{len(test_files)}] elapsed={elapsed:.0f}s "
+                  f"rate={rate:.1f} files/s eta={eta:.0f}s")
 
 prob_all = np.concatenate(prob_all, axis=0)
-print(f"Total inference time: {time.time() - t0:.0f}s")
+print(f"Total inference time: {time.time() - t0:.0f}s "
+      f"({(time.time() - t0) / max(len(test_files), 1):.2f}s/file)")
 
 # Write submission
 out_df = pd.DataFrame(prob_all, columns=class_cols)
