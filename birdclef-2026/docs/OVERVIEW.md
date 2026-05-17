@@ -124,6 +124,12 @@ This year a subset is **labeled by expert annotators**. Ground truth is in
 inside the labeled `train_soundscapes` (not in `train_audio`). However, not all
 species in `train_soundscapes` appear in `test_soundscapes`.
 
+> ⚠️ **As of download (2026-05-17):** the `train_soundscapes_labels.csv` file is
+> **not yet present** in the data release — only `train.csv`, `taxonomy.csv`,
+> and `sample_submission.csv` are available. Watch the discussion forum for
+> when the labels drop. Until then, the 28 species missing from `train_audio`
+> have no labeled examples.
+
 ### `train.csv`
 Metadata for `train_audio`. Key columns:
 
@@ -162,8 +168,26 @@ The 234 rows correspond to the 234 class columns in the submission file.
 
 - **Total: ~16.1 GB**
 - 46,207 `.ogg` audio files (~16.13 GB)
-- 4 CSV files (~6.9 MB)
-- 2 TXT files (~282 B)
+- 3 CSV files actually downloadable (~6.8 MB) — `train.csv`, `taxonomy.csv`, `sample_submission.csv`
+  (API file_summary reports 4 CSVs, but `train_soundscapes_labels.csv` is not yet released)
+- 2 TXT files (~282 B) — `recording_location.txt`, `test_soundscapes/readme.txt`
+
+### Local layout (under `birdclef-2026/data/`, gitignored)
+
+```
+data/
+├── recording_location.txt
+├── sample_submission.csv
+├── taxonomy.csv
+├── train.csv                       (35,549 rows)
+├── test_soundscapes/readme.txt     (test files appear only at submission time)
+├── train_audio/         (35,549 .ogg across 206 species dirs, ~11 GB)
+└── train_soundscapes/   (~10,644 .ogg, ~5.1 GB; date-coded BC2026_Train_*.ogg)
+```
+
+> 14 of 10,658 `train_soundscapes/` files (~7 MB) couldn't be re-downloaded due
+> to Kaggle 429 rate-limit. List: `birdclef-2026/missing_files.txt`. Run
+> `kaggle competitions download -c birdclef-2026 -f <path>` later to backfill.
 
 ### Class distribution (234 target classes)
 
