@@ -2,3 +2,4 @@
 # Download via:  kaggle competitions download -c birdclef-2026
 data/
 submission_code/
+meta_corpus/
