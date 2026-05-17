@@ -399,6 +399,50 @@ This dataset (CC0, 6 KB) is **byte-identical** to the official `train_soundscape
 4. Top-2 self-amplification (single kernel — chaneyma)
 5. Per-class fusion-alpha (single kernel — chaneyma)
 
+## 10.5. The site-prior blindspot nobody talks about
+
+The Bayesian site prior in everyone's pipeline is computed from `train_soundscapes_labels.csv` — 66 unique files. Site-level coverage of the labeled set:
+
+| site | labeled files | shrinkage weight `w_s = n/(n+8)` |
+|---|---:|---:|
+| **S22** | 40 | **0.984** (strong) |
+| S08, S09 | 5, 5 | 0.882 |
+| S15, S19, S23 | 4, 3, 3 | 0.82-0.86 |
+| S03, S13, S18 | 2, 2, 2 | 0.75 |
+| **everything else (14 sites)** | **0** | **0.000** (fallback to global_p) |
+
+Compare to the unlabeled train_soundscapes that test data resembles:
+
+| site | unlabeled files | % | labeled files |
+|---|---:|---:|---:|
+| S22 | 3,383 | 32% | 40 |
+| S02 | 2,505 | 24% | **0** |
+| S01 | 2,341 | 22% | **0** |
+| S13 | 1,873 | 18% | 2 |
+| S05 (sample test) | 9 | 0.1% | 0 |
+| 17 other sites | 386 | 4% | 25 total |
+
+**Of the 4 most-represented sites (S22 96% of unlabeled), only S22 has any meaningful site prior.** S01, S02 — together 46% of unlabeled data — contribute ZERO information to the site prior. The "site×hour Bayesian prior" is in practice an **hour-only prior** for these sites. Even worse: the labeled S22 windows are concentrated in **night hours** (20-23 + 0-3 UTC, 56 of 66 files), so the site×hour cross-table is very sparse outside that band.
+
+What the 868-team 0.948 PLATEAU all use without realizing: a prior tightly calibrated to S22 nighttime, applied to test data that may come from any of 23 sites at any hour. The effective signal is "what species are common in S22 at this hour" multiplied by a tiny scalar weight.
+
+**Fix**: pseudo-label the unlabeled 10,592 train_soundscapes (via Perch teacher in `pseudo_cache`) to build a 23-site × 24-hour prior table from 127,104 windows instead of 739. This is exactly what `backtracking/birdclef2026-pseudo-cache-v1` exists for — only 42 downloads so far.
+
+## 10.6 Multi-year temporal domain coverage
+
+Train_soundscapes spans **2014 → 2025-11-29**:
+
+| year | files |
+|---|---:|
+| 2014 | 106 |
+| 2021 | 1,646 |
+| 2022 | 3,146 |
+| **2023** | **3,598** |
+| 2024 | 1,925 |
+| 2025 | 237 |
+
+Sample test file: `BC2026_Test_0001_S05_20250227_010002` → **2025-02-27**. This matches the most recent train year. The implication: **train_soundscapes contains data from the same epoch as test** — the unlabeled mass of 237 train_soundscapes files from 2025 is the most temporally-aligned training distribution. A model finetuned ONLY on 2025 train_soundscapes (pseudo-labeled via Perch) may generalize better than one trained on the full 2014-2024 mass, due to seasonal/equipment drift.
+
 ## 11. Concrete plan for crossing 0.949 → 0.951+
 
 Based on the new evidence:
