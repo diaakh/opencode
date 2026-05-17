@@ -443,6 +443,125 @@ Train_soundscapes spans **2014 → 2025-11-29**:
 
 Sample test file: `BC2026_Test_0001_S05_20250227_010002` → **2025-02-27**. This matches the most recent train year. The implication: **train_soundscapes contains data from the same epoch as test** — the unlabeled mass of 237 train_soundscapes files from 2025 is the most temporally-aligned training distribution. A model finetuned ONLY on 2025 train_soundscapes (pseudo-labeled via Perch) may generalize better than one trained on the full 2014-2024 mass, due to seasonal/equipment drift.
 
+## 10.7 The geographic domain shift train→test (the biggest hidden mismatch)
+
+The `train.csv` metadata + the official Pantanal bbox tell a story everyone in the corpus seems to miss:
+
+| metric | value |
+|---|---:|
+| Pantanal bbox | lat -16.5 to -21.6, lon -55.9 to -57.6 |
+| Train recordings with lat/lon | 35,549 (100%) |
+| Train **inside** Pantanal bbox | **847 (2.4%)** |
+| Train **outside** Pantanal bbox | 34,702 (97.6%) |
+| Test data location (per readme) | **inside Pantanal** (SwiftOne deployments) |
+
+Per-class breakdown of "fraction inside Pantanal":
+
+| class | inside | total | inside % |
+|---|---:|---:|---:|
+| Mammalia | 7 | 99 | 7.1% |
+| Aves | 834 | 34,799 | 2.4% |
+| Amphibia | 6 | 451 | 1.3% |
+| **Insecta** | **0** | **199** | **0.0%** |
+| **Reptilia** | **0** | **1** | **0.0%** |
+
+**97.6% of all training audio is from OUTSIDE the test domain.** The same bird species sings different dialects in different regions; frogs vary by microhabitat; insects (which are the missing-from-train cohort anyway) have ZERO Pantanal training data even for the 3 mapped species. This is a substantial domain shift that compounds the data-starvation problem.
+
+Source counts:
+- 23,043 XC + 12,506 iNat = 35,549 train recordings  
+- 3 distinct Insecta species in train.csv (Guyalna cuta=11, Quesada gigas=181, Prionacris erosa=7)
+- 32 Amphibia (vs 35 in taxonomy → 3 missing frogs)
+- 162 Aves, all mapped
+- 8 Mammalia (incl. Domestic Dog, Bos taurus, Feral Horse — likely farm-adjacent recordings)
+- 1 Reptilia with ONE 7.9s clip rms=0.013 (Southern Spectacled Caiman)
+
+The competition score depends partly on identifying barking dogs and lowing cattle in Pantanal soundscapes (because train.csv contains those species). These are easier to predict than expected — they're high-energy, distinctive sounds.
+
+## 10.8 What the labeled soundscape rescues from the data-starved classes
+
+Of the 14 classes with <10 train recordings, the 66 labeled train_soundscapes files contain windows for 7 of them:
+
+| class | train recs | labeled windows | common name |
+|---|---:|---:|---|
+| 24321 | 2 | **172** | Mato Grosso Snouted Tree Frog |
+| 22967 | 8 | **155** | Marbled White-lipped Frog |
+| 66971 | 5 | **149** | Paraguayan Swimming Frog |
+| 22961 | 6 | 36 | Pointedbelly Frog |
+| 116570 | **1** | **13** | Southern Spectacled Caiman |
+| 516975 | **1** | **13** | Hooded Capuchin |
+| 67252 | 6 | 2 | Milk Frog |
+
+The labeled soundscapes are the ONLY meaningful supervised signal for these 7 classes. A model that doesn't fine-tune on the soundscape labels will miss them entirely. The Hooded Capuchin / Southern Spectacled Caiman have 1 train clip → 13 labeled-soundscape windows = a 13x data multiplier from the soundscape labels alone.
+
+Sonotype coverage in labeled soundscapes (the 25 insect sonotypes with 0 train recordings):
+
+| sonotype | labeled windows |
+|---|---:|
+| **47158son25** | **84** |
+| 47158son07 | 48 |
+| 47158son17 | 43 |
+| 47158son11, son13 | 36, 36 |
+| 47158son03, son10 | 33, 33 |
+| 47158son01,21-24 | 22-24 each |
+| 47158son15,16,18,20,14 | 12 each |
+| 47158son06, son08, son04 | 18, 17, 17 |
+| 47158son02 | 7 |
+| 47158son09, son12, son19 | 5-6 |
+| **47158son05** | **3** |
+
+**All 25 sonotypes have at least some labeled soundscape coverage** — but 47158son05 has only 3 windows and son19/son09/son12 have 5-6. Building a robust per-sonotype classifier from only 3-6 windows is essentially memorization. This sonotype tail is exactly where the ELITE kernels have headroom that no template can buy.
+
+## 10.9 BirdCLEF 2025 winners — directly applicable insights
+
+External research (sources at end of section):
+
+1. **1st place (Nikita Babych)**: "Multi-Iterative Noisy Student" — train teacher on labeled, pseudo-label unlabeled soundscapes, train student with noise + augmentation, repeat. Lifted ~0.898 → 0.930 private AUC. **This is exactly what `backtracking/birdclef2026-pseudo-cache-v1` enables for 2026 without you having to run Perch.**
+
+2. **1st place pretraining**: Using BirdCLEF 2021–2024 historical audio before fine-tuning on the current year lifted a single model from 0.855 → 0.868. For BC2026, this means: pretrain on BC2021–2025 train.csv-equivalent then fine-tune on 2026.
+
+3. **2nd place (Sydorskyi+Goncalves)** at LB 0.94+:
+   - Backbones: `tf_efficientnetv2_s_in21k` + `eca_nfnet_l0` (NOT ConvNeXt, NOT HGNet — confirms our HI vs LO finding that ConvNeXt and HGNet are negative-delta features)
+   - Loss: focal BCE + label smoothing 1.005
+   - Class balancing: SqrtBalancing + MinorOverSampleV1
+   - Pseudo-labels: F2 prob>0.5 + model threshold>0.1 + min 4 occurrences, 3 iterations
+   - Inference: ONNX → OpenVINO fp16 (much faster than ONNX alone)
+
+4. **Top-2% (Max Melichov)**:
+   - **EfficientNet-B0 beat V2-S** on this dataset (in pure inference). Diversity > size.
+   - Two spectrogram configs blended: `(n_fft=1024, hop=64, mels=148)` and `(2048, 512, 128)`. Cross-resolution diversity.
+   - **Plain BCE BEAT focal/SoftAUC** for him (contradicts our HI ELITE finding that focal is +15% over PLATEAU; but n=14 makes ELITE stats noisy).
+   - Middle 5-sec window beat random / energy-based crops.
+   - Silero-VAD removed human-speech windows.
+   - Mixup α=0.15.
+   - Only ~5 epochs — more = overfit.
+   - **Quantile-Mix blending (α=0.5) of mean + rank-average across CNN variants + community SED models. Simple averaging works best.**
+   - GeM pooling on second-to-last + last layers (not just last).
+   - Pseudo-labeling alone: +0.018 (0.817 → 0.835).
+
+5. **13th place (h-k-z)**: published full code as `hideyukizushi` in our corpus (LB 0.953 in 2026 = rank 17). Same author across both years. His 2026 ResidualSSM + Isotonic + StratifiedGroupKFold recipe is a refinement of his 2025 approach.
+
+6. **Cross-cutting**:
+   - **Noisy-Student / iterative pseudo-labeling = biggest single lever** in 2025 winners
+   - Diverse 2-3 CNN backbones + SED model > any single architecture
+   - ONNX → OpenVINO fp16 for CPU speed (saves 30-50% time vs raw ONNX)
+   - 5-second windows are standard
+   - SqrtBalancing for rare classes
+   - "Fancy" novelties (custom AUC losses, exotic backbones) consistently LOST to careful spectrogram tuning + simple BCE + ensemble averaging
+
+**For BirdCLEF+ 2026 the read is**:
+- The 0.948 PLATEAU is the inference-only saturation
+- The 0.95+ ELITE requires (1) custom-trained backbone with mixup + 5-epoch budget, (2) **iterative pseudo-labeling on train_soundscapes** (which the pseudo_cache enables out of the box), (3) ensemble of 2-3 backbones at different mel resolutions
+- Focal vs BCE is undetermined for this competition; the safe bet is BCE + label smoothing (matches 2025 2nd place)
+
+Sources (fetched live, not from training memory):
+- [BirdCLEF 2025 1st Place (Babych) Writeup](https://www.kaggle.com/competitions/birdclef-2025/writeups/nikita-babych-1st-place-solution-multi-iterative-n)
+- [BirdCLEF 2025 2nd Place GitHub (VSydorskyy)](https://github.com/VSydorskyy/BirdCLEF_2025_2nd_place)
+- [BirdCLEF 2025 2nd Place CEUR Paper (Sydorskyi & Goncalves)](https://ceur-ws.org/Vol-4038/paper_256.pdf)
+- [Max Melichov Top-2% Writeup](https://medium.com/@maxme006/how-i-climbed-to-the-top-2-in-birdclef-2025-every-failure-every-lesson-and-why-details-matter-273d781a33df)
+- [Tekkix overview of BirdCLEF 2025 top finishes](https://tekkix.com/articles/ai/2025/07/birdclef-2025-overview-of-the-competition-a)
+- [STSG / Perch TFLite paper for CPU speed (`arxiv:2507.08236`)](https://arxiv.org/html/2507.08236v1)
+- [13th place writeup (hideyukizushi, 2025)](https://www.kaggle.com/competitions/birdclef-2025/writeups/h-k-z-13rd-solution-for-birdclef-2025)
+
 ## 11. Concrete plan for crossing 0.949 → 0.951+
 
 Based on the new evidence:
@@ -457,8 +576,10 @@ Based on the new evidence:
 - **Per-class isotonic + F1-threshold** on your OOF (script in §6c above). For macro-AUC the calibration is what matters; thresholds are sanity checks.
 
 ### Tier-C (multi-day, ELITE-level)
-- **Train your own EfficientNet-B0 SED with focal+cutmix** distilled from the pseudo_cache embeddings. Replace Tucker's CC0 model with your own — that's how ELITE kernels differ from PLATEAU.
+- **Train your own EfficientNet-B0 SED with mixup α=0.15 + label smoothing 1.005, only ~5 epochs** distilled from the pseudo_cache soft labels. Mirror BC2025 1st place's "Multi-Iterative Noisy Student": train, pseudo-label train_soundscapes, retrain, repeat 3x. This is THE single biggest lever per BC2025 winners (+0.03 to +0.05).
+- **Two spectrogram configs in the same model**: `(n_fft=1024, hop=64, n_mels=148)` + `(2048, 512, 128)`. Provides cross-resolution diversity inside a single backbone (per BC2025 Top-2% Melichov).
 - **Mine iNaturalist Sounds** for the 28 missing classes (Insecta sonotypes + 3 frogs). The XC URLs dataset will NOT help here. Look up `iNaturalist sounds research-grade Pantanal` exports.
+- **Convert your final ONNX → OpenVINO fp16**: gives 30-50% inference time reduction per BC2025 2nd place. Frees CPU budget for more ensemble members.
 
 ### Tier-D (architectural research)
 - Wire in **chaneyma's per-class fusion-alpha** between your ProtoSSM and Perch teacher. Sigmoid-gate per class, init zero. Adds a few KB of parameters; learns where to trust the refiner over the teacher.
