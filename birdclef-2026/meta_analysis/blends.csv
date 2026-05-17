@@ -1,0 +1,16 @@
+n_blend_configs,max_n_models,all_models,all_weights,all_lbs,ref
+1,1,Model_3,0.015|0.985,0.928|0.947,adarsh5harma/birdclef-2026-v44-nina-q4
+1,1,Model_3,0.026|0.974,0.928|0.947,adarsh5harma/birdclef-2026-v46-raunak-deep
+1,1,Model_51,0.50|0.50,0.948|0.948,adarsh5harma/birdclef-2026-v55-eslam
+2,1,||Karnakbayev_PowerOptimization_LB0948,1||1.000,0.948||0.948,adarsh5harma/birdclef-2026-v61-safar-0948-fork
+1,1,Model_3,0.032|0.968,0.928|0.947,anthonytherrien/birdclef-ensemble-of-solutions
+1,2,Model_61|Model_62,0.45|0.55,0.946|0.946,henryszy/bc2026-ensemble-solutions-v66
+1,1,Model_3,0.026|0.974,0.928|0.947,kruzzcc/bc26-raunak-deep-dyn-bn
+1,3,Model_3|Model_41|Model_42,0.037|0.530|0.433,0.928|0.947|0.947,lucataco/bc26-nina-ensemble2-sanitized
+1,2,Model_61|Model_62,0.45|0.55,0.946|0.946,mtoshidesu/testbirdclef-2026-ensemble-of-solutions-3
+1,1,Model_3,0.015|0.985,0.928|0.947,nina2025/birdclef-2026-eos-3
+2,1,||Karnakbayev_PowerOptimization_LB0948,1||1.000,0.948||0.948,nina2025/birdclef-2026-eos-4
+1,1,Karnakbayev_PowerOptimization_LB0948,1.000,0.948,pilkwang/948-birdclef-26-acoustic-time-window-rank-fusion
+1,1,Model_3,0.026|0.974,0.928|0.947,raunakdey07/birdclef-2026-deep-protossm-sed-dynamic-blend
+1,1,Karnakbayev_PowerOptimization_LB0948,1.000,0.948,raunakdey07/birdclef-2026-v6
+2,1,||Karnakbayev_PowerOptimization_LB0948,1||1.000,0.948||0.948,sunderekkiz/birdclef-2026-exp019-eos4-rank-power-06
