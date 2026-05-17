@@ -117,18 +117,12 @@ This year a subset is **labeled by expert annotators**. Ground truth is in
 `train_soundscapes_labels.csv` with columns:
 
 - `filename` — soundscape filename
-- `start`, `end` — 5-second segment
-- `primary_label` — semicolon-separated species codes present in segment
+- `start`, `end` — 5-second segment (as `HH:MM:SS` strings)
+- `primary_label` — **semicolon-separated** species codes present in segment (multi-label)
 
 **Important:** Some species in the hidden test data may appear in training **only**
 inside the labeled `train_soundscapes` (not in `train_audio`). However, not all
 species in `train_soundscapes` appear in `test_soundscapes`.
-
-> ⚠️ **As of download (2026-05-17):** the `train_soundscapes_labels.csv` file is
-> **not yet present** in the data release — only `train.csv`, `taxonomy.csv`,
-> and `sample_submission.csv` are available. Watch the discussion forum for
-> when the labels drop. Until then, the 28 species missing from `train_audio`
-> have no labeled examples.
 
 ### `train.csv`
 Metadata for `train_audio`. Key columns:

@@ -1,0 +1,91 @@
+{
+  "totals": {
+    "train_csv_rows": 35549,
+    "taxonomy_classes": 234,
+    "submission_classes": 234,
+    "train_audio_dirs": 206,
+    "train_soundscape_files": 10658,
+    "labeled_segments": 739,
+    "labeled_soundscape_files": 66
+  },
+  "class_distribution": {
+    "in_taxonomy": {
+      "Insecta": 28,
+      "Reptilia": 1,
+      "Amphibia": 35,
+      "Mammalia": 8,
+      "Aves": 162
+    },
+    "clips_in_train_audio": {
+      "Amphibia": 451,
+      "Aves": 34799,
+      "Insecta": 199,
+      "Mammalia": 99,
+      "Reptilia": 1
+    }
+  },
+  "rare_species": {
+    "n_missing_from_train_audio": 28,
+    "n_only_in_soundscape_labels": 28,
+    "min_clips_in_train": 1,
+    "median_clips_in_train": 125
+  },
+  "audio_duration_sample": {
+    "n_sampled": 1364,
+    "median_s": 21.44653125,
+    "mean_s": 35.21544664131232,
+    "p99_s": 249.44331156249785,
+    "min_s": 0.00871875,
+    "max_s": 734.0146875,
+    "sample_rates": {
+      "32000": 1364
+    },
+    "channels": {
+      "1": 1364
+    }
+  },
+  "geo": {
+    "with_coords": 35549,
+    "in_pantanal_box": 847,
+    "pct_in_pantanal_box": 2.382626796815663
+  },
+  "soundscapes": {
+    "sites": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S21",
+      "S22",
+      "S23"
+    ],
+    "n_sites": 23,
+    "date_min": "2014-01-07",
+    "date_max": "2025-11-29",
+    "n_files": 10658
+  },
+  "multi_label": {
+    "labeled_segments": 739,
+    "raw_rows_in_csv": 1478,
+    "duplicate_ratio_pct": 50.0,
+    "mean_species_per_segment": 4.2246278755074425,
+    "pct_multi_label": 89.44519621109607,
+    "max_species_in_one_segment": 10
+  }
+}
