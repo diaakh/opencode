@@ -1,0 +1,16 @@
+{
+  "id": "adkasd/bc26-birdtransform-inspect",
+  "title": "bc26 birdtransform inspect",
+  "code_file": "birdtransform_oof.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "pulkitsahu89/birdtransform-birdclef-2026-transformer-model"
+  ]
+}
