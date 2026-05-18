@@ -1,24 +1,47 @@
-"""Perch 2.0 (Google, Aug 2025) inference on labeled OOF.
+"""Perch 2.0 CPU on labeled OOF — uses TF 2.21 installed offline.
 
-Perch 2.0 is the NEW Google bioacoustics model:
-- Multi-taxa training (birds, AMPHIBIANS, mammals, anthropogenic noise)
-- Self-distillation with prototype-learning classifier
-- Source-prediction training criterion
-- Trained on 14,795+ species
-- Released August 2025
-
-This is fundamentally different from our current Perch v1/v2 (bird-only).
-The multi-taxa training should directly help our Amphibia bottleneck.
-
-Expected: standalone macro-AUC could be 0.96+ on labeled OOF.
+Kaggle's bundled TF 2.18 can't deserialize Perch 2.0's XLA modules. Solution:
+install TF 2.21 (which we used locally and confirmed works) via offline wheel.
 """
-import os, sys, re, time, json, glob
-os.environ["TF_XLA_FLAGS"] = "--tf_xla_auto_jit=0"
+import os, sys, subprocess, glob
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# Find wheels — try multiple paths
+WHEEL_PATHS = [
+    "/kaggle/input/tensorflow-221-py312-wheel",
+    "/kaggle/input/datasets/adkasd/tensorflow-221-py312-wheel",
+]
+TF_WHEEL_DIR = None
+for p in WHEEL_PATHS:
+    if os.path.exists(p):
+        TF_WHEEL_DIR = p; break
+assert TF_WHEEL_DIR, f"TF 2.21 wheels not attached: {WHEEL_PATHS}"
+print(f"TF wheels at: {TF_WHEEL_DIR}")
+
+# Install TF 2.21 CPU + deps
+print("Installing TF 2.21 CPU + deps offline...")
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "--upgrade",
+    "--no-index", "--find-links", TF_WHEEL_DIR,
+    f"{TF_WHEEL_DIR}/numpy-2.4.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+    f"{TF_WHEEL_DIR}/protobuf-7.34.1-py3-none-any.whl",
+    f"{TF_WHEEL_DIR}/ml_dtypes-0.5.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+    f"{TF_WHEEL_DIR}/keras-3.14.1-py3-none-any.whl",
+    f"{TF_WHEEL_DIR}/tensorflow_cpu-2.21.0-cp312-cp312-manylinux_2_27_x86_64.whl",
+])
+print("TF install done")
+
+
+
+
+# Import everything we need
+import re, time, json
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import soundfile as sf
+import tensorflow as tf
+tf.config.optimizer.set_jit(False)
+print(f"TF version: {tf.__version__}")
 
 # Find Perch 2.0 SavedModel
 # Kaggle Models mount under /kaggle/input/<owner>-<model>/<framework>/<variation>/<version>/

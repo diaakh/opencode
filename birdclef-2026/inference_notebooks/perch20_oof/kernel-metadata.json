@@ -10,7 +10,7 @@
   "enable_internet": false,
   "keywords": [],
   "competition_sources": ["birdclef-2026"],
-  "dataset_sources": [],
+  "dataset_sources": ["adkasd/tensorflow-221-py312-wheel"],
   "model_sources": [
     "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
   ]
