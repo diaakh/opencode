@@ -69,9 +69,11 @@ PRIOR_PATH = PRIOR_HITS[0]
 KNN_HITS = list(Path("/kaggle/input").rglob("knn_index.pkl"))
 PROBE_HITS = list(Path("/kaggle/input").rglob("probe_ridge.pkl"))
 BAL_LR_HITS = list(Path("/kaggle/input").rglob("balanced_lr_bundle.pkl"))
+META_HITS = list(Path("/kaggle/input").rglob("meta_stacker_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
+HAS_META = bool(META_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -80,6 +82,7 @@ print(f"PRIOR:      {PRIOR_PATH}")
 print(f"KNN INDEX:  {KNN_HITS[0] if HAS_KNN else '<MISSING — falls back without megaKNN>'}")
 print(f"PROBE:      {PROBE_HITS[0] if HAS_PROBE else '<MISSING — falls back without Probe>'}")
 print(f"BAL_LR:     {BAL_LR_HITS[0] if HAS_BAL_LR else '<MISSING — falls back without balanced LR (+0.0067 OOF)>'}")
+print(f"META:       {META_HITS[0] if HAS_META else '<MISSING — falls back without meta-stacker (+0.0007 OOF)>'}")
 
 # Install onnxruntime if missing
 try:
@@ -133,6 +136,15 @@ if HAS_BAL_LR:
     n_trained = sum(1 for m in bal_lr["lr_models"] if m is not None)
     print(f"Balanced LR: SVD={bal_lr['svd'].n_components}, {n_trained}/{len(bal_lr['classes'])} per-class models, "
           f"OOF AUC contribution -> {bal_lr.get('auc_oof', 'unknown')}")
+
+# Meta-stacker bundle (per-class LR over 5 model rank scores)
+meta_stacker = None
+if HAS_META:
+    with open(META_HITS[0], "rb") as f:
+        meta_stacker = pickle.load(f)
+    n_trained = sum(1 for m in meta_stacker["meta_models"] if m is not None)
+    print(f"Meta-stacker: {n_trained}/{len(meta_stacker['classes'])} per-class LR over "
+          f"{len(meta_stacker['features'])} rank features, blend alpha={meta_stacker['blend_alpha']}")
 
 # Combined hour prior
 hp_df = pd.read_csv(PRIOR_PATH).set_index("hour")
@@ -367,11 +379,40 @@ else:
 # Step 2: blend balanced LR on top (the +0.0067 OOF additive — small-class focus)
 if HAS_BAL_LR:
     ALPHA_LR = bal_lr.get("alpha", 0.55)  # OOF-optimal alpha
-    blend = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
+    R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
     print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF by +0.0067)")
 else:
-    blend = R_base
+    R_blend_v1 = R_base
     print("No balanced LR available (would have added +0.0067 OOF)")
+
+# Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
+if HAS_META:
+    # Build per-class meta predictions
+    n_rows = R_bruce.shape[0]
+    P_meta_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
+    for ci, m in enumerate(meta_stacker["meta_models"]):
+        if m is None: continue
+        # Stack 5 features for this class across all rows
+        if HAS_BAL_LR:
+            X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                                 R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                                 R_perch[:, ci], R_bal_lr[:, ci]])
+        else:
+            # Mirror with zeros for missing models so the LR sees the same feature shape
+            X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                                 R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                                 R_perch[:, ci], np.full(n_rows, 0.5)])
+        try:
+            P_meta_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
+        except Exception:
+            pass
+    R_meta = rank_norm(P_meta_all)
+    ALPHA_META = meta_stacker["blend_alpha"]
+    blend = (1 - ALPHA_META) * R_blend_v1 + ALPHA_META * R_meta
+    print(f"Added meta-stacker @ alpha={ALPHA_META} (lifts OOF by +0.0007 -> 0.9654)")
+else:
+    blend = R_blend_v1
+    print("No meta-stacker available (would have added +0.0007 OOF)")
 
 # Apply combined hour prior
 W_PRIOR = 2.5  # tested optimal for rank-blend on labeled OOF
@@ -393,5 +434,9 @@ print(f"\nWrote submission.csv: {len(out_df)} rows × {out_df.shape[1]} cols, "
       f"min={final.min():.4f}, max={final.max():.4f}")
 print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
       f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
-      f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + combined_prior(w={W_PRIOR})")
-print(f"Expected OOF: {'0.9647' if HAS_BAL_LR else '0.9580 (no balanced LR)'}")
+      f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + "
+      f"MetaStacker={'YES' if HAS_META else 'NO'} + combined_prior(w={W_PRIOR})")
+expected_oof = "0.9580"
+if HAS_BAL_LR: expected_oof = "0.9647"
+if HAS_BAL_LR and HAS_META: expected_oof = "0.9654"
+print(f"Expected OOF: {expected_oof}")
