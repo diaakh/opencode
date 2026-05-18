@@ -27,3 +27,4 @@ logs/
 *.bun-build
 birdclef-2026/analysis/knn_retrieval/knn_index.pkl
 birdclef-2026/inference_notebooks/knn_index_bundle/knn_index.pkl
+birdclef-2026/inference_notebooks/priors_bundle/external_rag_bundle.pkl
