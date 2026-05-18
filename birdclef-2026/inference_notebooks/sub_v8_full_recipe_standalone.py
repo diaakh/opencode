@@ -68,8 +68,10 @@ PRIOR_PATH = PRIOR_HITS[0]
 
 KNN_HITS = list(Path("/kaggle/input").rglob("knn_index.pkl"))
 PROBE_HITS = list(Path("/kaggle/input").rglob("probe_ridge.pkl"))
+BAL_LR_HITS = list(Path("/kaggle/input").rglob("balanced_lr_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
+HAS_BAL_LR = bool(BAL_LR_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -77,6 +79,7 @@ print(f"PERCH:      {PERCH_ONNX_PATH}")
 print(f"PRIOR:      {PRIOR_PATH}")
 print(f"KNN INDEX:  {KNN_HITS[0] if HAS_KNN else '<MISSING — falls back without megaKNN>'}")
 print(f"PROBE:      {PROBE_HITS[0] if HAS_PROBE else '<MISSING — falls back without Probe>'}")
+print(f"BAL_LR:     {BAL_LR_HITS[0] if HAS_BAL_LR else '<MISSING — falls back without balanced LR (+0.0067 OOF)>'}")
 
 # Install onnxruntime if missing
 try:
@@ -121,6 +124,15 @@ if HAS_PROBE:
     with open(PROBE_HITS[0], "rb") as f:
         probe = pickle.load(f)
     print(f"Probe loaded: {type(probe).__name__}")
+
+# Balanced LR bundle (SVD + per-class class_weight='balanced' LogisticRegression)
+bal_lr = None
+if HAS_BAL_LR:
+    with open(BAL_LR_HITS[0], "rb") as f:
+        bal_lr = pickle.load(f)
+    n_trained = sum(1 for m in bal_lr["lr_models"] if m is not None)
+    print(f"Balanced LR: SVD={bal_lr['svd'].n_components}, {n_trained}/{len(bal_lr['classes'])} per-class models, "
+          f"OOF AUC contribution -> {bal_lr.get('auc_oof', 'unknown')}")
 
 # Combined hour prior
 hp_df = pd.read_csv(PRIOR_PATH).set_index("hour")
@@ -249,10 +261,21 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe = [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr = [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
+
+def bal_lr_predict(emb_query):
+    """Apply SVD then per-class LogisticRegression. Returns (n, 234)."""
+    if bal_lr is None:
+        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+    emb_red = bal_lr["svd"].transform(emb_query)
+    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+    for ci, m in enumerate(bal_lr["lr_models"]):
+        if m is None: continue
+        out[:, ci] = m.predict_proba(emb_red)[:, 1].astype(np.float32)
+    return out
 
 import concurrent.futures
 def load_and_chunk(p):
@@ -281,6 +304,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         knn_probs = knn_predict(emb)
         probe_probs = (1.0 / (1.0 + np.exp(-probe.predict(emb)))
                        if probe is not None else np.zeros_like(bruce_probs))
+        bal_lr_probs = bal_lr_predict(emb)
 
         for bi, (fpath, _) in enumerate(batch_results):
             s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
@@ -297,6 +321,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_perch.append(perch_probs[s])
             all_knn.append(knn_probs[s])
             all_probe.append(probe_probs[s])
+            all_bal_lr.append(bal_lr_probs[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -310,6 +335,7 @@ P_bruce_all = np.concatenate(all_bruce, axis=0)
 P_perch_all = np.concatenate(all_perch, axis=0)
 P_knn_all = np.concatenate(all_knn, axis=0)
 P_probe_all = np.concatenate(all_probe, axis=0)
+P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -322,20 +348,30 @@ R_bruce = rank_norm(P_bruce_all)
 R_perch = rank_norm(P_perch_all)
 R_knn = rank_norm(P_knn_all) if HAS_KNN else None
 R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
+R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
 
-# Blend (fall back gracefully if KNN/Probe missing)
+# Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
-    blend = 0.30*R_bruce + 0.40*R_knn + 0.20*R_probe + 0.10*R_perch
-    print("Full blend: 0.30 Bruce_sm + 0.40 KNN + 0.20 Probe + 0.10 Perch")
+    R_base = 0.30*R_bruce + 0.40*R_knn + 0.20*R_probe + 0.10*R_perch
+    print("Base blend: 0.30 Bruce_sm + 0.40 KNN + 0.20 Probe + 0.10 Perch")
 elif HAS_KNN:
-    blend = 0.50*R_bruce + 0.40*R_knn + 0.10*R_perch
-    print("Fallback blend (no Probe): 0.50 Bruce_sm + 0.40 KNN + 0.10 Perch")
+    R_base = 0.50*R_bruce + 0.40*R_knn + 0.10*R_perch
+    print("Fallback base (no Probe): 0.50 Bruce_sm + 0.40 KNN + 0.10 Perch")
 elif HAS_PROBE:
-    blend = 0.50*R_bruce + 0.30*R_probe + 0.20*R_perch
-    print("Fallback blend (no KNN): 0.50 Bruce_sm + 0.30 Probe + 0.20 Perch")
+    R_base = 0.50*R_bruce + 0.30*R_probe + 0.20*R_perch
+    print("Fallback base (no KNN): 0.50 Bruce_sm + 0.30 Probe + 0.20 Perch")
 else:
-    blend = 0.70*R_bruce + 0.30*R_perch
-    print("Minimum blend (Bruce + Perch only)")
+    R_base = 0.70*R_bruce + 0.30*R_perch
+    print("Minimum base (Bruce + Perch only)")
+
+# Step 2: blend balanced LR on top (the +0.0067 OOF additive — small-class focus)
+if HAS_BAL_LR:
+    ALPHA_LR = bal_lr.get("alpha", 0.55)  # OOF-optimal alpha
+    blend = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
+    print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF by +0.0067)")
+else:
+    blend = R_base
+    print("No balanced LR available (would have added +0.0067 OOF)")
 
 # Apply combined hour prior
 W_PRIOR = 2.5  # tested optimal for rank-blend on labeled OOF
@@ -356,4 +392,6 @@ out_df.to_csv("submission.csv", index=False)
 print(f"\nWrote submission.csv: {len(out_df)} rows × {out_df.shape[1]} cols, "
       f"min={final.min():.4f}, max={final.max():.4f}")
 print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
-      f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + combined_prior(w={W_PRIOR})")
+      f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
+      f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + combined_prior(w={W_PRIOR})")
+print(f"Expected OOF: {'0.9647' if HAS_BAL_LR else '0.9580 (no balanced LR)'}")
