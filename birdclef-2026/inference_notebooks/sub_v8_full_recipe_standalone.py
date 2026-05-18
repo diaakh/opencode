@@ -72,12 +72,14 @@ BAL_LR_HITS = list(Path("/kaggle/input").rglob("balanced_lr_bundle.pkl"))
 META_HITS = list(Path("/kaggle/input").rglob("meta_stacker_bundle.pkl"))
 HOUR_LR_HITS = list(Path("/kaggle/input").rglob("hour_lr_bundle.pkl"))
 LGB_HITS = list(Path("/kaggle/input").rglob("lgb_meta_bundle.pkl"))
+MLP_HITS = list(Path("/kaggle/input").rglob("mlp_5seed_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
 HAS_META = bool(META_HITS)
 HAS_HOUR_LR = bool(HOUR_LR_HITS)
 HAS_LGB = bool(LGB_HITS)
+HAS_MLP = bool(MLP_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -89,6 +91,7 @@ print(f"BAL_LR:     {BAL_LR_HITS[0] if HAS_BAL_LR else '<MISSING — falls back 
 print(f"META:       {META_HITS[0] if HAS_META else '<MISSING — falls back without meta-stacker (+0.0007 OOF)>'}")
 print(f"HOUR_LR:    {HOUR_LR_HITS[0] if HAS_HOUR_LR else '<MISSING — falls back without hour-conditional LR (+0.0016 OOF)>'}")
 print(f"LGB_META:   {LGB_HITS[0] if HAS_LGB else '<MISSING — falls back without LGB stacker (+0.0012 OOF)>'}")
+print(f"MLP_5SEED:  {MLP_HITS[0] if HAS_MLP else '<MISSING — falls back without 5-seed MLP (+0.0033 OOF -> 0.9708)>'}")
 
 # Install onnxruntime if missing
 try:
@@ -175,6 +178,16 @@ if HAS_LGB:
         print("WARNING: lightgbm not installed at runtime — skipping LGB stacker")
         HAS_LGB = False
         lgb_meta = None
+
+# MLP 5-seed ensemble bundle (per-class small MLPs, SVD-96 features)
+mlp_bundle = None
+if HAS_MLP:
+    with open(MLP_HITS[0], "rb") as f:
+        mlp_bundle = pickle.load(f)
+    n_trained = sum(1 for m in mlp_bundle["mlp_ensembles"] if m is not None)
+    print(f"MLP 5-seed: {n_trained}/{len(mlp_bundle['classes'])} per-class ensembles, "
+          f"SVD={mlp_bundle['svd'].n_components}, blend alpha={mlp_bundle['blend_alpha']}, "
+          f"OOF AUC={mlp_bundle.get('oof_auc', '?')}")
 
 def hour_bucket(h):
     if h <= 4: return 0
@@ -310,7 +323,7 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr = [], [], [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp = [], [], [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
@@ -324,6 +337,24 @@ def bal_lr_predict(emb_query):
     for ci, m in enumerate(bal_lr["lr_models"]):
         if m is None: continue
         out[:, ci] = m.predict_proba(emb_red)[:, 1].astype(np.float32)
+    return out
+
+def mlp_predict(emb_query):
+    """5-seed MLP ensemble per class. Returns (n, 234) — average over seeds."""
+    if mlp_bundle is None:
+        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+    emb_red = mlp_bundle["svd"].transform(emb_query)
+    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+    for ci, ens in enumerate(mlp_bundle["mlp_ensembles"]):
+        if ens is None: continue
+        preds = []
+        for m in ens:
+            try:
+                preds.append(m.predict_proba(emb_red)[:, 1])
+            except Exception:
+                pass
+        if preds:
+            out[:, ci] = np.mean(preds, axis=0).astype(np.float32)
     return out
 
 def hour_lr_predict(emb_query, hours_query):
@@ -373,6 +404,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         probe_probs = (1.0 / (1.0 + np.exp(-probe.predict(emb)))
                        if probe is not None else np.zeros_like(bruce_probs))
         bal_lr_probs = bal_lr_predict(emb)
+        mlp_probs = mlp_predict(emb)
         # For hour-conditional LR we need the per-window hour
         per_win_hours = []
         for bi, (fpath, _) in enumerate(batch_results):
@@ -398,6 +430,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_probe.append(probe_probs[s])
             all_bal_lr.append(bal_lr_probs[s])
             all_hour_lr.append(hour_lr_probs[s])
+            all_mlp.append(mlp_probs[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -413,6 +446,7 @@ P_knn_all = np.concatenate(all_knn, axis=0)
 P_probe_all = np.concatenate(all_probe, axis=0)
 P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
 P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
+P_mlp_all = np.concatenate(all_mlp, axis=0)
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -427,6 +461,7 @@ R_knn = rank_norm(P_knn_all) if HAS_KNN else None
 R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
 R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
 R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
+R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
 
 # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
@@ -479,6 +514,12 @@ if HAS_LGB and HAS_BAL_LR and HAS_HOUR_LR:
     R_blend_v1 = (1 - W_LGB) * R_blend_v1 + W_LGB * R_lgb
     print(f"Added LGB stacker @ w={W_LGB} (lifts OOF +0.0008 -> 0.9671)")
 
+# Step 2.7: blend MLP 5-seed ensemble on top (+0.0033 OOF — biggest stacker win)
+if HAS_MLP and R_mlp is not None:
+    ALPHA_MLP = mlp_bundle.get("blend_alpha", 0.35)
+    R_blend_v1 = (1 - ALPHA_MLP) * R_blend_v1 + ALPHA_MLP * R_mlp
+    print(f"Added 5-seed MLP @ alpha={ALPHA_MLP} (lifts OOF +0.0033 -> 0.9708)")
+
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
     # Build per-class meta predictions
@@ -509,7 +550,7 @@ else:
     print("No meta-stacker available (would have added +0.0007 OOF)")
 
 # Apply combined hour prior
-W_PRIOR = 2.5  # tested optimal for rank-blend on labeled OOF
+W_PRIOR = 2.0 if HAS_MLP else 2.5  # MLP recipe plateau peaks at w=2.0; old recipe at 2.5
 logit_p = np.log(np.clip(blend, EPS, 1-EPS) / np.clip(1-blend, EPS, 1))
 valid = (hours >= 0) & (hours < 24)
 shift = np.zeros_like(blend, dtype=np.float64)
@@ -537,4 +578,5 @@ if HAS_BAL_LR: expected_oof = "0.9647"
 if HAS_BAL_LR and HAS_HOUR_LR: expected_oof = "0.9663"
 if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB: expected_oof = "0.9671"
 if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB and HAS_META: expected_oof = "0.9675"
+if HAS_BAL_LR and HAS_HOUR_LR and HAS_MLP: expected_oof = "0.9708"
 print(f"Expected OOF: {expected_oof}")
