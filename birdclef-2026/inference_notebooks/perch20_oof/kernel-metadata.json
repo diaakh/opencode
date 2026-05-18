@@ -7,13 +7,13 @@
   "is_private": true,
   "enable_gpu": false,
   "enable_tpu": false,
-  "enable_internet": true,
+  "enable_internet": false,
   "keywords": [],
   "competition_sources": [
     "birdclef-2026"
   ],
   "dataset_sources": [
-    "adkasd/tensorflow-221-py312-wheel"
+    "nina2025/perch-v2-no-dft-v3-onnx"
   ],
   "model_sources": [
     "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
