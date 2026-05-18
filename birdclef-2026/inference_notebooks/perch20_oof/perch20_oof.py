@@ -13,6 +13,8 @@ The multi-taxa training should directly help our Amphibia bottleneck.
 Expected: standalone macro-AUC could be 0.96+ on labeled OOF.
 """
 import os, sys, re, time, json, glob
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_auto_jit=0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -36,6 +38,7 @@ if not PERCH20_ROOT:
 assert PERCH20_ROOT, "Perch 2.0 SavedModel not found"
 
 import tensorflow as tf
+tf.config.optimizer.set_jit(False)
 print(f"TF version: {tf.__version__}")
 print(f"Loading: {PERCH20_ROOT}")
 model = tf.saved_model.load(str(PERCH20_ROOT))
