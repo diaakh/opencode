@@ -111,27 +111,38 @@ for i, f in enumerate(labels["filename"]):
 print(f"\nProcessing {len(file_to_idx)} files...")
 P_birdmae = np.zeros((N, C), dtype=np.float32)
 
-# Preprocessing: 32kHz audio → mel-spectrogram (128 mel × 512 time = 5s × 32k / hop)
-# Use librosa (CPU/numpy) — torchaudio's CUDA STFT doesn't work on Kaggle T4/P100.
-import librosa as _libosa
+# Preprocessing: EXACT BirdMAE training pipeline from birdclef_ssl.py SSLBatcher
+# Uses torchaudio.compliance.kaldi.fbank, normalize by (mean=-7.2, std*2.0=8.86)
+# Output shape: (B, 1, target_length=512, num_mel_bins=128)
+import torchaudio
+import torch.nn.functional as F
+
+FBANK_MEAN = -7.2
+FBANK_STD = 4.43
+TARGET_LEN = 512
 
 def compute_mel_batch(wave_batch_np):
-    """Compute mel-spec for a batch of (B, samples) numpy arrays. Returns (B, 1, 128, 512)."""
-    out = np.zeros((len(wave_batch_np), 1, 128, 512), dtype=np.float32)
-    for i, y in enumerate(wave_batch_np):
-        m = _libosa.feature.melspectrogram(
-            y=y.astype(np.float32), sr=SR,
-            n_fft=2048, win_length=2048, hop_length=314,
-            n_mels=128, fmin=0, fmax=16000, power=2.0,
+    """Compute Bird-MAE fbank for batch. Returns (B, 1, 512, 128) torch tensor."""
+    fbanks = []
+    for y in wave_batch_np:
+        wav = torch.from_numpy(y.astype(np.float32))
+        # Center wave (mean subtraction, matches SSLBatcher)
+        wav = wav - wav.mean()
+        wav = wav.unsqueeze(0)  # (1, samples)
+        feat = torchaudio.compliance.kaldi.fbank(
+            wav, htk_compat=True, sample_frequency=SR, use_energy=False,
+            window_type="hanning", num_mel_bins=128, dither=0.0, frame_shift=10,
         )
-        m = _libosa.power_to_db(m, ref=np.max, top_db=80.0)
-        # Resize/pad to 512 time bins
-        if m.shape[1] < 512:
-            m = np.pad(m, ((0, 0), (0, 512 - m.shape[1])))
-        else:
-            m = m[:, :512]
-        out[i, 0] = m
-    return out
+        # feat: (T, 128)
+        if feat.shape[0] < TARGET_LEN:
+            pad = TARGET_LEN - feat.shape[0]
+            feat = F.pad(feat, (0, 0, 0, pad), value=float(feat.min()))
+        elif feat.shape[0] > TARGET_LEN:
+            feat = feat[:TARGET_LEN]
+        feat = (feat - FBANK_MEAN) / (FBANK_STD * 2.0)
+        fbanks.append(feat)
+    audio = torch.stack(fbanks, dim=0).unsqueeze(1)  # (B, 1, T=512, F=128)
+    return audio
 
 t0 = time.time()
 n_done = 0
@@ -170,9 +181,8 @@ with torch.no_grad():
             win_batch.append(clip)
         if not win_batch: continue
         
-        # Batched forward — compute mel on CPU (numpy/librosa), move to GPU for model
-        spec_np = compute_mel_batch(win_batch)  # (B, 1, 128, 512) float32
-        spec = torch.from_numpy(spec_np).to(device)
+        # Batched forward — compute fbank using EXACT training pipeline
+        spec = compute_mel_batch(win_batch).to(device)  # (B, 1, 512, 128)
         logits = model(spec)
         probs = torch.sigmoid(logits).cpu().numpy()
         # Place into BC2026 columns
