@@ -145,32 +145,32 @@ ridge = clip_bundle["model"]
 print(f"PCA components: {pca.n_components_}")
 
 # Bundle's primary_labels + class_to_bc give the Perch-14795 → BC2026-234 mapping
-primary_labels_bundle = bundle.get("primary_labels")  # 234-d list of BC2026 class strings (ridge output order)
-class_to_bc = bundle.get("class_to_bc")  # array mapping BC2026 idx → Perch logit idx (or similar)
-print(f"primary_labels (bundle): {None if primary_labels_bundle is None else len(primary_labels_bundle)}")
-print(f"class_to_bc: type={type(class_to_bc).__name__}, "
-      f"shape/len={getattr(class_to_bc,'shape',len(class_to_bc) if class_to_bc is not None else None)}")
-if class_to_bc is not None:
-    try:
-        print(f"class_to_bc sample (first 10): {np.asarray(class_to_bc)[:10]}")
-    except Exception:
-        pass
+primary_labels_bundle = list(bundle.get("primary_labels"))  # 234 BC class strings, bundle/ridge output order
+class_to_bc = bundle.get("class_to_bc")  # dict: bc_class_str -> Perch logit idx (NaN if unmapped)
+print(f"primary_labels (bundle): {len(primary_labels_bundle)}")
+print(f"class_to_bc keys sample: {list(class_to_bc.keys())[:5]}")
+print(f"class_to_bc values sample: {[(k, class_to_bc[k]) for k in list(class_to_bc.keys())[:5]]}")
 
-# Build perch_to_bc: a (C,) array where perch_to_bc[bc_idx] = perch_logit_idx
-# class_to_bc semantics in Bruce's bundle: indexed by primary_labels_bundle order,
-# mapping each BC class to the index in Perch's 14795-d vocab.
-perch_to_bc_idx = np.asarray(class_to_bc) if class_to_bc is not None else None
-print(f"perch_to_bc_idx range: {perch_to_bc_idx.min() if perch_to_bc_idx is not None else 'N/A'} "
-      f"to {perch_to_bc_idx.max() if perch_to_bc_idx is not None else 'N/A'}")
+# Build (234,) array of Perch indices in bundle's primary_labels order; -1 = unmapped
+perch_idx_for_bundle_cls = np.full(len(primary_labels_bundle), -1, dtype=np.int64)
+n_unmapped = 0
+for src_idx, bc_class in enumerate(primary_labels_bundle):
+    bc_str = str(bc_class)
+    v = class_to_bc.get(bc_str)
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        n_unmapped += 1
+        continue
+    perch_idx_for_bundle_cls[src_idx] = int(v)
+print(f"Perch-mapped bundle classes: {(perch_idx_for_bundle_cls >= 0).sum()}/{len(primary_labels_bundle)} "
+      f"(unmapped: {n_unmapped})")
+print(f"Perch idx range: {perch_idx_for_bundle_cls[perch_idx_for_bundle_cls >= 0].min()} – "
+      f"{perch_idx_for_bundle_cls.max()}")
 
 # Map from bundle's class order → taxonomy class order
-if primary_labels_bundle is not None:
-    bundle_to_tax = np.array([
-        cls_idx.get(str(c), -1) for c in primary_labels_bundle
-    ])
-    print(f"bundle → taxonomy mapping: {(bundle_to_tax >= 0).sum()}/{len(primary_labels_bundle)} matched")
-else:
-    bundle_to_tax = np.arange(C)
+bundle_to_tax = np.array([
+    cls_idx.get(str(c), -1) for c in primary_labels_bundle
+])
+print(f"bundle → taxonomy mapping: {(bundle_to_tax >= 0).sum()}/{len(primary_labels_bundle)} matched")
 
 
 # ---------- Iterate labeled files, run Perch + Bruce ----------
@@ -231,16 +231,11 @@ for fi, fname in enumerate(labeled_filenames):
     emb_s = emb_scaler.transform(emb)
     emb_pca = pca.transform(emb_s)
 
-    # Map Perch's 14795-d logits to BC2026 234-d via bundle's class_to_bc
-    if perch_to_bc_idx is not None and logits.shape[1] >= int(perch_to_bc_idx.max()) + 1:
-        # class_to_bc[bundle_class_idx] = perch_logit_idx
-        logits_for_bruce = logits[:, perch_to_bc_idx.astype(int)]
-    elif logits.shape[1] == 234:
-        logits_for_bruce = logits  # already mapped
-    else:
-        # Fallback that we KNOW is wrong but won't crash
-        logits_for_bruce = logits[:, :C]
-        print(f"  WARN: no mapping available, using first {C} of {logits.shape[1]} logits")
+    # Map Perch's 14795-d logits to BC2026 234-d (in bundle's class order).
+    # Unmapped classes get 0 (neutral logit ≈ sigmoid 0.5).
+    logits_for_bruce = np.zeros((N_WIN, len(primary_labels_bundle)), dtype=np.float32)
+    mask = perch_idx_for_bundle_cls >= 0
+    logits_for_bruce[:, mask] = logits[:, perch_idx_for_bundle_cls[mask].astype(int)]
 
     features = np.concatenate([emb_pca, logits_for_bruce], axis=1)
     features = feat_scaler.transform(features)
@@ -253,10 +248,10 @@ for fi, fname in enumerate(labeled_filenames):
             bruce_remap[:, tax_idx] = bruce_logits[:, src_idx]
     bruce_prob = 1.0 / (1.0 + np.exp(-bruce_remap))  # sigmoid
 
-    # Perch raw logits in TAXONOMY order: same remap path
+    # Perch raw logits → taxonomy order (unmapped left as NaN to be excluded from AUC)
     perch_remap = np.full((N_WIN, C), np.nan, dtype=np.float32)
     for src_idx, tax_idx in enumerate(bundle_to_tax):
-        if tax_idx >= 0 and src_idx < logits_for_bruce.shape[1]:
+        if tax_idx >= 0 and perch_idx_for_bundle_cls[src_idx] >= 0:
             perch_remap[:, tax_idx] = logits_for_bruce[:, src_idx]
 
     # Store into N-row arrays by (filename, win_idx)
