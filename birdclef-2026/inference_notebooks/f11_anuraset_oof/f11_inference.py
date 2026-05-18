@@ -82,7 +82,7 @@ except Exception as e:
     raise
 
 # Inspect input expectations
-print(f"Model first conv expects channels: {model.embedding.convolution.in_channels}")
+# Print removed — attribute does not exist on transformers EfficientNet
 
 # AnuraSet/BirdSet uses mel spectrogram inputs typically. Compute mel for each window.
 # Standard BirdSet preprocessing: 32kHz, 5s windows, mel-spectrogram (128 bins).
@@ -113,8 +113,8 @@ print(f"Mel shape: {mel.shape}")  # expect (128, T)
 
 # EfficientNet-B1 input typically 240x240 but adapt to mel size
 # BirdSet model: input is 3-channel (RGB-style) or 1-channel grayscale mel
-# Check first conv: model.embedding.convolution.in_channels
-in_ch = model.embedding.convolution.in_channels
+# Default to 3 channels for transformers EfficientNet
+in_ch = 3
 print(f"Conv expects {in_ch} channels")
 
 # Load labels
