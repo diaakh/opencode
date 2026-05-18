@@ -21,13 +21,14 @@ print("=== /kaggle/input ===")
 for p in sorted(glob.glob("/kaggle/input/*"))[:30]:
     print(" ", p)
 
-# Locate long_convnextv2 ONNX
-onnx_cands = sorted(glob.glob("/kaggle/input/**/long*.onnx", recursive=True)) + \
-             sorted(glob.glob("/kaggle/input/**/convnextv2*.onnx", recursive=True))
+# Locate long_convnextv2 ONNX (file is named fold0.onnx etc.)
+onnx_cands = sorted(glob.glob("/kaggle/input/**/long-convnextv2-tiny-onnx/fold*.onnx", recursive=True))
+if not onnx_cands:
+    onnx_cands = sorted(glob.glob("/kaggle/input/**/fold*.onnx", recursive=True))
 print(f"ONNX candidates: {onnx_cands}")
-assert onnx_cands, "no long-convnextv2 ONNX found"
-ONNX_PATH = onnx_cands[0]
-print(f"Using: {ONNX_PATH}")
+assert onnx_cands, "no fold*.onnx found under long-convnextv2-tiny-onnx"
+ONNX_PATH = onnx_cands[0]  # fold0 only; ensemble would 5x runtime
+print(f"Using fold: {ONNX_PATH}")
 
 # Locate competition dir
 COMP_CANDS = sorted(glob.glob("/kaggle/input/**/birdclef-2026", recursive=False))
