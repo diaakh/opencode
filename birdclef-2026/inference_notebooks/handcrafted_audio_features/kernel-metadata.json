@@ -1,0 +1,13 @@
+{
+  "id": "adkasd/bc26-handcrafted-audio-features",
+  "title": "bc26 handcrafted audio features",
+  "code_file": "audio_features_oof.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"]
+}
