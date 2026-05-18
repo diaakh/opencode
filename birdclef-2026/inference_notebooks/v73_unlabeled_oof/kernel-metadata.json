@@ -1,0 +1,17 @@
+{
+  "id": "adkasd/bc26-v73-on-unlabeled-gpu",
+  "title": "bc26 v73 on unlabeled gpu",
+  "code_file": "v73_unlabeled_inference.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "adkasd/v73-fold0-onnx",
+    "tuckerarrants/perch-v2-no-dft-onnx"
+  ]
+}
