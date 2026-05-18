@@ -55,7 +55,7 @@ if not COMP_DIR.exists():
 # BENCHMARK MODE
 TEST_DIR = COMP_DIR / "train_soundscapes"
 SAMPLE_SUB_PATH = COMP_DIR / "sample_submission.csv"
-print("BENCHMARK MODE — running on train_soundscapes")
+print("BENCHMARK MODE")
 
 BUNDLE_HITS = list(Path("/kaggle/input").rglob("clip_student_bundle.pkl"))
 assert BUNDLE_HITS, "Attach brucewu1200/birdclef-2026-cvlb-assets-0911"
@@ -77,6 +77,7 @@ HOUR_LR_HITS = list(Path("/kaggle/input").rglob("hour_lr_bundle.pkl"))
 LGB_HITS = list(Path("/kaggle/input").rglob("lgb_meta_bundle.pkl"))
 MLP_HITS = list(Path("/kaggle/input").rglob("mlp_5seed_bundle.pkl"))
 PROTO_HITS = list(Path("/kaggle/input").rglob("prototype_bundle.pkl"))
+EXT_RAG_HITS = list(Path("/kaggle/input").rglob("external_rag_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
@@ -85,6 +86,7 @@ HAS_HOUR_LR = bool(HOUR_LR_HITS)
 HAS_LGB = bool(LGB_HITS)
 HAS_MLP = bool(MLP_HITS)
 HAS_PROTO = bool(PROTO_HITS)
+HAS_EXT_RAG = bool(EXT_RAG_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -236,6 +238,21 @@ if HAS_PROTO:
     n_with_proto = int((np.linalg.norm(prototypes_mat, axis=1) > 0.5).sum())
     print(f"Prototypes: {n_with_proto}/234 classes, blend alpha={proto_bundle.get('blend_alpha', 0.30)}")
 
+# External RAG bundle — 49k AnuraSet + Amazon Basin + Coffee Farms Perch embeddings.
+# Provides retrieval-based signal for the 42 classes with strong external coverage.
+# Per-bottleneck-frog OOF improvements: 22961 +0.046, 555146 +0.013, 517063 +0.013
+ext_rag_bundle = None
+if HAS_EXT_RAG:
+    with open(EXT_RAG_HITS[0], "rb") as f:
+        ext_rag_bundle = pickle.load(f)
+    ext_emb = ext_rag_bundle["emb_ext_n"].astype(np.float32)  # promote half→full for matmul
+    ext_Y = ext_rag_bundle["Y_ext_u8"].astype(np.float32)
+    ext_strong = ext_rag_bundle["strong_mask"]
+    ext_K_list = ext_rag_bundle.get("K_list", [10, 30, 100])
+    ext_alpha = ext_rag_bundle.get("blend_alpha", 0.40)
+    print(f"External RAG: {ext_emb.shape[0]} rows × {ext_emb.shape[1]}d, "
+          f"{ext_strong.sum()}/234 strong classes, K={ext_K_list}, alpha={ext_alpha}")
+
 def hour_bucket(h):
     if h <= 4: return 0
     elif h <= 7: return 1
@@ -372,7 +389,7 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto = [], [], [], [], [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto, all_extrag = [], [], [], [], [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
@@ -454,11 +471,33 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
                        if probe is not None else np.zeros_like(bruce_probs))
         bal_lr_probs = bal_lr_predict(emb)
         mlp_probs = mlp_predict(emb)
-        if proto_bundle is not None:
+        if proto_bundle is not None or ext_rag_bundle is not None:
             emb_n = normalize(emb)
+        if proto_bundle is not None:
             proto_sim = (emb_n @ prototypes_mat.T).astype(np.float32)  # (B*W, 234)
         else:
             proto_sim = np.zeros((emb.shape[0], 234), dtype=np.float32)
+        # External RAG: multi-K retrieval against 49k Perch embeddings → per-class soft labels
+        if ext_rag_bundle is not None:
+            sims_e = emb_n @ ext_emb.T  # (B*W, 49520)
+            # Sort once for largest K, slice for smaller K
+            K_max = max(ext_K_list)
+            top_idx = np.argpartition(-sims_e, K_max, axis=1)[:, :K_max]
+            row_ix = np.arange(sims_e.shape[0])[:, None]
+            sims_top = sims_e[row_ix, top_idx]
+            order = np.argsort(-sims_top, axis=1)
+            top_idx = np.take_along_axis(top_idx, order, axis=1)
+            sims_top = np.take_along_axis(sims_top, order, axis=1)
+            ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
+            for K in ext_K_list:
+                w = np.maximum(sims_top[:, :K], 0).astype(np.float32)
+                w_sum = w.sum(axis=1, keepdims=True)
+                w_sum[w_sum == 0] = 1.0
+                w = w / w_sum
+                Yk = ext_Y[top_idx[:, :K]]  # (B*W, K, 234)
+                ext_rag += np.einsum("bk,bkc->bc", w, Yk) / len(ext_K_list)
+        else:
+            ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
         # For hour-conditional LR we need the per-window hour
         per_win_hours = []
         for bi, (fpath, _) in enumerate(batch_results):
@@ -486,6 +525,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_hour_lr.append(hour_lr_probs[s])
             all_mlp.append(mlp_probs[s])
             all_proto.append(proto_sim[s])
+            all_extrag.append(ext_rag[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -503,6 +543,7 @@ P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
 P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
 P_mlp_all = np.concatenate(all_mlp, axis=0)
 P_proto_all = np.concatenate(all_proto, axis=0) if proto_bundle is not None else None
+P_extrag_all = np.concatenate(all_extrag, axis=0) if ext_rag_bundle is not None else None
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -519,6 +560,7 @@ R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
 R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
 R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
 R_proto = rank_norm(P_proto_all) if proto_bundle is not None else None
+R_extrag = rank_norm(P_extrag_all) if ext_rag_bundle is not None else None
 
 # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
@@ -584,6 +626,18 @@ if proto_bundle is not None and R_proto is not None:
     ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.10)
     R_blend_v1 = (1 - ALPHA_PROTO) * R_blend_v1 + ALPHA_PROTO * R_proto
     print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (honest, clean DB)")
+
+# Step 2.9: External RAG (multi-K AnuraSet + Amazon Basin + Coffee Farms retrieval)
+# Targeted on 42 strong-coverage classes. Honest +0.0011 → 0.9717 OOF.
+if ext_rag_bundle is not None and R_extrag is not None:
+    ALPHA_EXT = ext_rag_bundle.get("blend_alpha", 0.40)
+    strong_mask_arr = ext_rag_bundle["strong_mask"]
+    # Apply only on strong-coverage classes
+    R_blend_v1[:, strong_mask_arr] = (
+        (1 - ALPHA_EXT) * R_blend_v1[:, strong_mask_arr]
+        + ALPHA_EXT * R_extrag[:, strong_mask_arr]
+    )
+    print(f"Added external-RAG on {strong_mask_arr.sum()} strong classes @ alpha={ALPHA_EXT} (lifts OOF +0.0011 → 0.9717)")
 
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
