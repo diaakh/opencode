@@ -142,22 +142,35 @@ emb_scaler = clip_bundle["emb_scaler"]
 pca = clip_bundle["pca"]
 feat_scaler = clip_bundle["feature_scaler"]
 ridge = clip_bundle["model"]
-ridge_classes = clip_bundle.get("classes")  # may be None — fall back to taxonomy order
 print(f"PCA components: {pca.n_components_}")
-print(f"Ridge classes: {None if ridge_classes is None else len(ridge_classes)}")
 
+# Bundle's primary_labels + class_to_bc give the Perch-14795 → BC2026-234 mapping
+primary_labels_bundle = bundle.get("primary_labels")  # 234-d list of BC2026 class strings (ridge output order)
+class_to_bc = bundle.get("class_to_bc")  # array mapping BC2026 idx → Perch logit idx (or similar)
+print(f"primary_labels (bundle): {None if primary_labels_bundle is None else len(primary_labels_bundle)}")
+print(f"class_to_bc: type={type(class_to_bc).__name__}, "
+      f"shape/len={getattr(class_to_bc,'shape',len(class_to_bc) if class_to_bc is not None else None)}")
+if class_to_bc is not None:
+    try:
+        print(f"class_to_bc sample (first 10): {np.asarray(class_to_bc)[:10]}")
+    except Exception:
+        pass
 
-# ---------- Class column reordering between Bruce ridge and taxonomy ----------
-# Bruce's ridge outputs may be in its own class order; reorder to taxonomy.
-if ridge_classes is not None:
-    bruce_to_tax = np.array([
-        cls_idx[c] if c in cls_idx else -1 for c in [str(rc) for rc in ridge_classes]
+# Build perch_to_bc: a (C,) array where perch_to_bc[bc_idx] = perch_logit_idx
+# class_to_bc semantics in Bruce's bundle: indexed by primary_labels_bundle order,
+# mapping each BC class to the index in Perch's 14795-d vocab.
+perch_to_bc_idx = np.asarray(class_to_bc) if class_to_bc is not None else None
+print(f"perch_to_bc_idx range: {perch_to_bc_idx.min() if perch_to_bc_idx is not None else 'N/A'} "
+      f"to {perch_to_bc_idx.max() if perch_to_bc_idx is not None else 'N/A'}")
+
+# Map from bundle's class order → taxonomy class order
+if primary_labels_bundle is not None:
+    bundle_to_tax = np.array([
+        cls_idx.get(str(c), -1) for c in primary_labels_bundle
     ])
-    valid = bruce_to_tax >= 0
-    print(f"Bruce → taxonomy mapping: {valid.sum()}/{len(ridge_classes)} matched")
+    print(f"bundle → taxonomy mapping: {(bundle_to_tax >= 0).sum()}/{len(primary_labels_bundle)} matched")
 else:
-    bruce_to_tax = np.arange(C)
-    valid = np.ones(C, dtype=bool)
+    bundle_to_tax = np.arange(C)
 
 
 # ---------- Iterate labeled files, run Perch + Bruce ----------
@@ -214,33 +227,37 @@ for fi, fname in enumerate(labeled_filenames):
         emb = np.asarray(out[0]).reshape(N_WIN, -1)
         logits = np.asarray(out[1]).reshape(N_WIN, -1)
 
-    # Bruce pipeline: scale → PCA → concat with raw logits (subset to 234) → scale → ridge
+    # Bruce pipeline: scale → PCA → concat with mapped Perch logits → scale → ridge
     emb_s = emb_scaler.transform(emb)
     emb_pca = pca.transform(emb_s)
 
-    # Subset logits to first 234 OR to taxonomy-mapped columns
-    if logits.shape[1] == C:
-        logits_for_bruce = logits
+    # Map Perch's 14795-d logits to BC2026 234-d via bundle's class_to_bc
+    if perch_to_bc_idx is not None and logits.shape[1] >= int(perch_to_bc_idx.max()) + 1:
+        # class_to_bc[bundle_class_idx] = perch_logit_idx
+        logits_for_bruce = logits[:, perch_to_bc_idx.astype(int)]
+    elif logits.shape[1] == 234:
+        logits_for_bruce = logits  # already mapped
     else:
-        # Perch outputs 14795 logits; the kernel needs to know which 234 to use.
-        # Bruce's bundle should embed this mapping in `feature_scaler` input shape.
-        # Try first 234 as a sanity fallback (will be re-mapped via ridge_classes).
+        # Fallback that we KNOW is wrong but won't crash
         logits_for_bruce = logits[:, :C]
+        print(f"  WARN: no mapping available, using first {C} of {logits.shape[1]} logits")
+
     features = np.concatenate([emb_pca, logits_for_bruce], axis=1)
     features = feat_scaler.transform(features)
-    bruce_logits = ridge.predict(features)  # (N_WIN, C_bruce)
+    bruce_logits = ridge.predict(features)  # (N_WIN, 234) in BUNDLE class order
 
-    # Reorder to taxonomy if needed
+    # Reorder bundle's class order → taxonomy class order
     bruce_remap = np.full((N_WIN, C), np.nan, dtype=np.float32)
-    for src_idx, tax_idx in enumerate(bruce_to_tax):
+    for src_idx, tax_idx in enumerate(bundle_to_tax):
         if tax_idx >= 0:
             bruce_remap[:, tax_idx] = bruce_logits[:, src_idx]
     bruce_prob = 1.0 / (1.0 + np.exp(-bruce_remap))  # sigmoid
 
-    # Perch raw logits → first 234 cols (or remap)
-    perch_remap = logits_for_bruce
-    if perch_remap.shape[1] != C:
-        perch_remap = np.full((N_WIN, C), np.nan, dtype=np.float32)
+    # Perch raw logits in TAXONOMY order: same remap path
+    perch_remap = np.full((N_WIN, C), np.nan, dtype=np.float32)
+    for src_idx, tax_idx in enumerate(bundle_to_tax):
+        if tax_idx >= 0 and src_idx < logits_for_bruce.shape[1]:
+            perch_remap[:, tax_idx] = logits_for_bruce[:, src_idx]
 
     # Store into N-row arrays by (filename, win_idx)
     for w in range(N_WIN):
