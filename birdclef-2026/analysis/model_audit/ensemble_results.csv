@@ -1,0 +1,15 @@
+strategy,macro_auc
+baiyuby_v2s_att,0.587798440737192
+snowflake_convnext,0.598801555109674
+snowflake_efnetv2m,0.6009850269004654
+oracle_per_hour_blends,0.6077684506618674
+mauricio_b0_scratch,0.623221918311088
+long_convnextv2,0.6302988590599027
+baiyuby_v2s_max_FLIPPED,0.6331738424378973
+alexander_b0,0.6344055979306558
+oracle_per_hour,0.6403138175797085
+uniform_rank_avg_6_noflip,0.6476362010443854
+uniform_prob_avg_7,0.6577530646648027
+uniform_rank_avg_7,0.664558309864751
+top3_rank_avg,0.6785450990246009
+oracle_per_class,0.8137291966786365

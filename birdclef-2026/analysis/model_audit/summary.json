@@ -1,0 +1,102 @@
+{
+  "n_rows": 739,
+  "n_classes_with_positives": 75,
+  "unique_hours": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    7,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+  ],
+  "site_distribution": {
+    "S22": 477,
+    "S08": 60,
+    "S15": 48,
+    "S19": 36,
+    "S23": 36,
+    "S03": 24,
+    "S13": 24,
+    "S09": 19,
+    "S18": 15
+  },
+  "overall_auc": {
+    "alexander_b0": 0.6344055979306558,
+    "baiyuby_v2s_max": 0.36682615756210263,
+    "baiyuby_v2s_att": 0.587798440737192,
+    "long_convnextv2": 0.6302988590599027,
+    "mauricio_b0_scratch": 0.623221918311088,
+    "snowflake_convnext": 0.598801555109674,
+    "snowflake_efnetv2m": 0.6009850269004654,
+    "pseudo_hour_prior": 0.9175080459383236,
+    "labeled_hour_prior": 0.9448932877192912
+  },
+  "per_hour_winner": {
+    "0": {
+      "model": "mauricio_b0_scratch",
+      "auc": 0.7865206381202433
+    },
+    "1": {
+      "model": "alexander_b0",
+      "auc": 0.6690656122334104
+    },
+    "2": {
+      "model": "snowflake_efnetv2m",
+      "auc": 0.7168676567846831
+    },
+    "3": {
+      "model": "mauricio_b0_scratch",
+      "auc": 0.8921274969886083
+    },
+    "4": {
+      "model": "mauricio_b0_scratch",
+      "auc": 0.7085461761765717
+    },
+    "6": {
+      "model": "snowflake_convnext",
+      "auc": 0.5407537899140543
+    },
+    "7": {
+      "model": "mauricio_b0_scratch",
+      "auc": 0.9754291574187454
+    },
+    "18": {
+      "model": "snowflake_efnetv2m",
+      "auc": 0.7591053391053391
+    },
+    "19": {
+      "model": "baiyuby_v2s_att",
+      "auc": 0.5915057631893427
+    },
+    "20": {
+      "model": "snowflake_convnext",
+      "auc": 0.6464043051949555
+    },
+    "21": {
+      "model": "alexander_b0",
+      "auc": 0.602688488203129
+    },
+    "22": {
+      "model": "alexander_b0",
+      "auc": 0.7488271583574135
+    },
+    "23": {
+      "model": "long_convnextv2",
+      "auc": 0.7683486719342395
+    }
+  },
+  "per_class_winner_counts": {
+    "labeled_hour_prior": 26,
+    "pseudo_hour_prior": 13,
+    "alexander_b0": 7,
+    "mauricio_b0_scratch": 3,
+    "long_convnextv2": 1
+  }
+}

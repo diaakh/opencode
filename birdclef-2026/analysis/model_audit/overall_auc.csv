@@ -1,0 +1,10 @@
+model,macro_auc
+labeled_hour_prior,0.9448932877192912
+pseudo_hour_prior,0.9175080459383236
+alexander_b0,0.6344055979306558
+long_convnextv2,0.6302988590599027
+mauricio_b0_scratch,0.623221918311088
+snowflake_efnetv2m,0.6009850269004654
+snowflake_convnext,0.598801555109674
+baiyuby_v2s_att,0.587798440737192
+baiyuby_v2s_max,0.36682615756210263
