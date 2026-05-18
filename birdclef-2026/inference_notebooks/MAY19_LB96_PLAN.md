@@ -1,107 +1,97 @@
-# May 19 submission plan — push LB to 96+
+# May 19 submission plan — honest path to LB 0.96+
 
 **Goal:** LB macro-AUC ≥ 0.96
-**Baseline:** strongest public exp019 LB ~0.949
-**Headroom needed:** +0.011 minimum
+**Status:** sub_v8 is benchmark-validated; expected runtime 21 min for 600 files
 
-## The thesis
+## Honest OOF state
 
-Public exp019 already gets us to 0.949. Our local research adds:
-1. **combined_hour_prior** (pseudo + iNat hybrid) — dense across all 24 hours
-2. **calibrated weight** based on input dynamic range (auto-scaled)
-3. **dead-hour fix** baked into the prior (iNat fills hours 11-16)
-4. **sonotype aliases** (free patch — broadcast paired call types)
+| Recipe | OOF | LB (if measured) |
+|---|---:|---:|
+| Bruce alone | 0.867 | — |
+| Bruce + KNN + Probe + Perch + prior | 0.9595 | — |
+| sub2 Bruce standalone + prior w=3.0 | 0.9586 | **0.755** (severe OOF→LB gap) |
+| exp019 + hour_prior w=3.0 | "0.997" (leaky) | **0.920** |
+| exp019 + hour_prior w=2.0 + alias | "0.99x" (leaky) | 0.920 |
+| **exp019 vanilla** | — | **0.949** ← public baseline |
+| **V73 5-fold** | 0.667 (Aves-only model, drags on others) | **0.941** |
+| **V73 + Raunak blend** | — | 0.931 |
+| sub_v8 with stackers + clean prototype | **0.9710 (honest)** | **?** (untested) |
 
-The May 18 submissions used `w=3.0` on exp019's rank-power outputs ([0.477, 0.555])
-which **crushed** the LB (sub1 = 0.92 vs exp019 = 0.949). The fix is `w=0.5` on
-that scale per labeled-OOF simulation with the **combined** prior (the
-previous `w=0.05` finding assumed the buggy dead-hour-zero prior).
+**Critical insight from May 18 submissions:** the hour-prior at w=3.0 HURT
+LB by ~0.03. The prior is overfit to labeled-OOF site/hour distribution.
+On LB it crushes legitimate signal.
 
-## Slot allocation (in submit order — first is safest)
+## Slot allocation (5 LB submissions available)
 
-| Slot | Notebook | Patches | Expected LB |
-|---:|---|---|---:|
-| 1 | exp019 fork + sub_v7 cell | hour_prior(auto-w) + sonotype_aliases | 0.96–0.97 ⭐ |
-| 2 | exp019 fork + sub_v7 cell | hour_prior only (no aliases) | 0.96 (control) |
-| 3 | exp019 vanilla | none | 0.949 (baseline anchor) |
-| 4 | exp019 + sub_v7 + perch_calib | full stack | 0.96–0.97 (risky calib) |
-| 5 | sub2_bruce_standalone + sub_v7 cell | Bruce-based + combined prior | 0.85–0.92 (diversity test) |
+| Slot | Strategy | Expected LB | Risk |
+|---:|---|---:|---|
+| 1 | **exp019 vanilla** (no prior) | 0.949 anchor | none |
+| 2 | **V73 5-fold + small w_prior=0.5** | 0.94-0.95 | low |
+| 3 | **exp019 + V73 5-fold rank-blend (50/50)** | 0.95-0.96 | low |
+| 4 | **sub_v8 full pipeline standalone** (0.9710 OOF) | 0.85-0.93 | medium |
+| 5 | **exp019 + sub_v8 rank-blend (70/30)** | 0.94-0.96 ⭐ best | low |
 
-**Why slot 1 first:** isolates the single highest-confidence move (combined
-prior at auto-scaled weight). If it beats baseline, slots 2/4 build on it.
+## Why slot 5 is the high-confidence push:
 
-**Why slot 3 control:** we never confirmed our team's actual exp019 baseline
-from this account — assumed 0.949 from CONTEXT.md. Sub3 anchors the gap.
+- **exp019 anchors at 0.949** (proven LB)
+- **sub_v8 adds orthogonal Bruce-derived signal** (not Perch-pseudo-labeling)
+- A 70/30 rank-blend keeps 70% of the proven recipe + adds 30% diversity
+- If sub_v8 transfers at even 0.85 LB, the blend lifts toward 0.95
+- If sub_v8 transfers at 0.92, blend can hit 0.96+
 
-**Why slot 5:** if Bruce + our extras at honest weights gets close to exp019,
-that proves the path is robust. If it bombs, exp019 IS the right base.
+## What canceled the prior-heavy plan:
 
-## sub_v7 logic
+The May 18 results showed: hour_prior w=3.0 → LB 0.920 (vs 0.949 baseline).
+The prior was tuned on labeled OOF where S22-night dominates, but the
+test set has different site/hour distribution. So:
+- DROP heavy prior weights (w ≥ 2.0)
+- Use w=0.5 only as a gentle adjustment if needed
+- Trust per-class model signals over hour priors
 
-```python
-def auto_weight(prob):
-    span = np.percentile(prob, 99) - np.percentile(prob, 1)
-    if span < 0.05: return 0.1     # very compressed
-    if span < 0.15: return 0.5     # rank-power compressed (exp019)
-    if span < 0.5: return 1.5      # mid
-    return 2.5                     # wide / raw probability
-```
+## Sub_v8 details
 
-Calibrated on labeled OOF (combined prior, no dead-hour clipping):
+Recipe: Bruce_smoothed + megaKNN + Probe + Perch + balanced LR + hour LR
++ LGB-7 stacker + 5-seed MLP + prototype-sim + combined_hour_prior(w=2.0)
 
-| Span class | Sample | Optimal w | OOF AUC | Δ |
-|---|---|---:|---:|---:|
-| Very compressed (0.02) | extreme rank-power | 0.1 | 0.9505 | +0.092 |
-| Rank-power (0.08) | exp019 | 0.5 | 0.9506 | +0.064 |
-| Mid (0.87) | rescaled Bruce | 2.5 | 0.9528 | +0.094 |
-| Wide (0.96) | raw Bruce | 3.0 | 0.9534 | +0.095 |
+Critical fixes shipped this session:
+1. **sklearn 1.6/1.8 compat** — pickled LRs lost `multi_class` attribute;
+   restored via _sklearn_compat_fix() walk. Sub_v7 would have CRASHED on
+   LB without this.
+2. **Prototype bundle uses clean DB** — rebuilt without labeled-OOF rows
+   to ensure LB inference matches the deployed signal.
+3. **Benchmark on 30 train_soundscapes files**: 64s = 2.13 s/file → 21
+   min for 600 files. 4× headroom.
 
-## Risks
+## Sub_v8 deployment checklist
 
-1. **OOF distribution doesn't match LB.** Labeled OOF is 100% night hours
-   (S22-night biased). Test set hour mix is unknown. The iNat fill for hours
-   11-16 is plausible but unvalidated on LB.
+- [x] sub_v8_full_recipe_standalone.py with all stackers
+- [x] Compat fix applied
+- [x] Datasets attached: comp + Bruce + Perch + KNN + probe + priors
+- [x] prototype_bundle.pkl uploaded (clean DB, blend_alpha=0.10)
+- [x] Benchmark confirms 21 min runtime
+- [ ] Push to LB Slot 4 tomorrow
 
-2. **exp019's compressed scale may distort more than simulation predicts.**
-   The May 18 LB had a 0.057 absolute swing vs simulation. Auto-weight at
-   `w=0.5` is mid-range of optimum (sim says 0.5-1.0 plateau); should be safe.
+## What CAN'T fix the 0.99 OOF wall
 
-3. **`sonotype_aliases` patch on test could over-broadcast.** It assumes the
-   sono15/16 and sono22/23 pairs share recording labels. On labeled OOF
-   neutral; on LB could be +0.001 to -0.003.
+Already exhausted (all gave 0 or negative on clean measurements):
+- Multi-prototype-per-class (KMeans on pure rows)
+- Multi-output MLP (PyTorch + sklearn variants)
+- ExtraTrees, RandomForest per class
+- Multi-SVD MLP ensemble
+- Big MLP with concat features
+- LOFO labeled prototypes
+- KNN-of-Bruce-predictions
+- Multi-prototype mean/median/medoid
+- Within-file rank/mean-centered/std/max
+- Per-class LDA discriminator
+- Soft-RAG / Full-RAG / GMM density
+- Context-centered embedding subtraction
+- File-grouped per-class temperature
+- Sigmoid temperature scaling (doesn't affect AUC)
 
-## Pre-submission checklist
-
-- [ ] Re-upload `birdclef-2026-priors-research` dataset with `combined_hour_prior.csv`
-  (was added today; old version only has `pseudo_hour_priors.csv`).
-- [ ] Confirm exp019 notebook fork still runs successfully on Kaggle.
-- [ ] Verify the sub_v7 cell auto-detects the right weight by printing `span`
-  before submitting (the first run output will show `AUTO-SCALED weight: w=X`).
-- [ ] If span detection lands at `w=0.1` or `w=2.5` (extremes) on exp019,
-  manually override to `w=0.5` — that's where the simulation peak is.
-
-## How to submit
-
-```
-1. Fork exp019 notebook on Kaggle ("Copy & Edit")
-2. Add Data → adkasd/birdclef-2026-priors-research (after re-upload)
-3. Scroll to last cell, click "+ Add code cell" below it
-4. Paste the entire contents of sub_v7_combined_prior_autoscale.py
-5. Save & Run All
-6. Verify the auto-weight printout matches table above
-7. Submit to Competition
-```
-
-## What 96 LB unlocks
-
-A 0.96+ LB score puts us in the top 20-30 of public LB (depending on the day).
-The OOF→LB gap we've seen is ~0.02; getting LB 0.96 means OOF 0.98 territory
-is plausible on a less-biased validation set.
-
-Further moves AFTER hitting 0.96:
-- Run the standalone Bruce+megaKNN+Probe+Perch+prior recipe (our 0.9613 OOF)
-  as an independent base, then blend with exp019 at 50/50 rank-mean.
-- Push the 93MB knn_index.pkl as a private Kaggle dataset to enable megaKNN
-  at inference time.
-- Train a frog-specialist GPU model on Babych BC2025 extra-data (17k frog
-  observations) to break the Amphibia ceiling.
+The 0.99 wall is structural — 4 Pantanal frogs co-occurring at S22-night
+have per-class AUC bounded ~0.81-0.94 because they're acoustically
+mixed in the same windows. To break it requires:
+- GPU-trained model on full train_audio + frog extras (e.g., Babych 17k)
+- Hengck PyTorch Perch fine-tune
+- Different OOF set with no chorus co-occurrence
