@@ -1,0 +1,19 @@
+{
+  "id": "adkasd/birdclef-2026-sub-v8-runtime-bench",
+  "title": "birdclef 2026 sub v8 runtime bench",
+  "code_file": "sub_v8_bench.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "brucewu1200/birdclef-2026-cvlb-assets-0911",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "adkasd/birdclef-2026-priors-research",
+    "adkasd/birdclef-2026-knn-index"
+  ]
+}
