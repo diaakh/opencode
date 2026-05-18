@@ -5,7 +5,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "perch-hoplite"])
 
 import perch_hoplite
-from perch_hoplite.zoo import model_configs, models
+from perch_hoplite.zoo import model_configs
 print(f"perch_hoplite version: {getattr(perch_hoplite, '__version__', '?')}")
 print(f"ModelConfigName values: {[e.name for e in model_configs.ModelConfigName]}")
 
