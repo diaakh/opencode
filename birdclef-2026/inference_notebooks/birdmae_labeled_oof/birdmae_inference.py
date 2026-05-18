@@ -56,7 +56,7 @@ if classes is None:
 print(f"BirdMAE classes: {len(classes)}")
 
 n_cls = len(classes)
-model = BirdMAEClassifier(encoder=encoder, num_classes=n_cls, pool="mean", drop=0.1)
+model = BirdMAEClassifier(encoder=encoder, num_classes=n_cls, pool="mean", dropout=0.1)
 state = ckpt["state_dict"] if "state_dict" in ckpt else ckpt
 try:
     missing, unexpected = model.load_state_dict(state, strict=False)
