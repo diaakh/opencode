@@ -20,7 +20,7 @@ print(f"TF wheels at: {TF_WHEEL_DIR}")
 
 # Install TF 2.21 CPU + deps
 print("Installing TF 2.21 CPU + deps offline...")
-subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "--upgrade",
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "--upgrade", "--no-deps",
     "--no-index", "--find-links", TF_WHEEL_DIR,
     f"{TF_WHEEL_DIR}/numpy-2.4.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
     f"{TF_WHEEL_DIR}/protobuf-7.34.1-py3-none-any.whl",
