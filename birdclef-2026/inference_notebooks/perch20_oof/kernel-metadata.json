@@ -12,6 +12,6 @@
   "competition_sources": ["birdclef-2026"],
   "dataset_sources": [],
   "model_sources": [
-    "google/bird-vocalization-classifier/TensorFlow2/perch_v2/2"
+    "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
   ]
 }
