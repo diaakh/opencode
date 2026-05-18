@@ -1,0 +1,17 @@
+{
+  "id": "adkasd/bc26-v73-labeled-oof",
+  "title": "bc26 v73 labeled oof",
+  "code_file": "v73_labeled_oof.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "adkasd/v73-fold0-onnx",
+    "tuckerarrants/perch-v2-no-dft-onnx"
+  ]
+}
