@@ -124,8 +124,14 @@ for f, idx_list in file_to_indices.items():
     audio, _ = librosa.load(str(fpath), sr=SR, mono=True)
     # 12 windows expected per file
     for row_i in idx_list:
-        # Each row has a start time
-        win_start = int(labels.iloc[row_i]["start"]) * SR
+        # Each row has a start time — may be int seconds or HH:MM:SS string
+        st_val = labels.iloc[row_i]["start"]
+        if isinstance(st_val, str) and ":" in st_val:
+            h, m, s = st_val.split(":")
+            start_sec = int(h) * 3600 + int(m) * 60 + int(s)
+        else:
+            start_sec = int(float(st_val))
+        win_start = start_sec * SR
         # TTA: center, left-2.5s, right-2.5s
         starts = [
             win_start,
