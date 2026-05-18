@@ -1,0 +1,16 @@
+{
+  "id": "adkasd/birdclef-2026-birdmae-submit",
+  "title": "birdclef 2026 birdmae submit",
+  "code_file": "birdmae_submit.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "adkasd/birdmae-finetune-234"
+  ]
+}
