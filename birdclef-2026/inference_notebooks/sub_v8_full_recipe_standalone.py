@@ -71,11 +71,13 @@ PROBE_HITS = list(Path("/kaggle/input").rglob("probe_ridge.pkl"))
 BAL_LR_HITS = list(Path("/kaggle/input").rglob("balanced_lr_bundle.pkl"))
 META_HITS = list(Path("/kaggle/input").rglob("meta_stacker_bundle.pkl"))
 HOUR_LR_HITS = list(Path("/kaggle/input").rglob("hour_lr_bundle.pkl"))
+LGB_HITS = list(Path("/kaggle/input").rglob("lgb_meta_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
 HAS_META = bool(META_HITS)
 HAS_HOUR_LR = bool(HOUR_LR_HITS)
+HAS_LGB = bool(LGB_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -86,6 +88,7 @@ print(f"PROBE:      {PROBE_HITS[0] if HAS_PROBE else '<MISSING — falls back wi
 print(f"BAL_LR:     {BAL_LR_HITS[0] if HAS_BAL_LR else '<MISSING — falls back without balanced LR (+0.0067 OOF)>'}")
 print(f"META:       {META_HITS[0] if HAS_META else '<MISSING — falls back without meta-stacker (+0.0007 OOF)>'}")
 print(f"HOUR_LR:    {HOUR_LR_HITS[0] if HAS_HOUR_LR else '<MISSING — falls back without hour-conditional LR (+0.0016 OOF)>'}")
+print(f"LGB_META:   {LGB_HITS[0] if HAS_LGB else '<MISSING — falls back without LGB stacker (+0.0012 OOF)>'}")
 
 # Install onnxruntime if missing
 try:
@@ -157,6 +160,21 @@ if HAS_HOUR_LR:
     n_trained = len(hour_lr["hr_models"])
     print(f"Hour-LR: {n_trained} per-(bucket, class) models across "
           f"{len(set(k[0] for k in hour_lr['hr_models']))} hour buckets")
+
+# LightGBM meta-stacker bundle (per-class LGB over 6 rank features)
+lgb_meta = None
+if HAS_LGB:
+    try:
+        import lightgbm as _lgb  # ensure available at inference
+        with open(LGB_HITS[0], "rb") as f:
+            lgb_meta = pickle.load(f)
+        n_trained = sum(1 for m in lgb_meta["lgb_models"] if m is not None)
+        print(f"LGB stacker: {n_trained}/{len(lgb_meta['classes'])} per-class models, "
+              f"6 features, blend w_lgb={lgb_meta['blend_w_lgb']}, w_dist={lgb_meta['blend_w_dist']}")
+    except ImportError:
+        print("WARNING: lightgbm not installed at runtime — skipping LGB stacker")
+        HAS_LGB = False
+        lgb_meta = None
 
 def hour_bucket(h):
     if h <= 4: return 0
@@ -441,6 +459,26 @@ else:
     R_blend_v1 = R_base
     print("No balanced LR available")
 
+# Step 2.5: blend LightGBM meta-stacker on top (final +0.0012 OOF)
+if HAS_LGB and HAS_BAL_LR and HAS_HOUR_LR:
+    n_rows = R_bruce.shape[0]
+    P_lgb_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
+    for ci, m in enumerate(lgb_meta["lgb_models"]):
+        if m is None: continue
+        # 6 features in this exact order: Bruce, KNN, Probe, Perch, BalLR, HourLR
+        X = np.column_stack([R_bruce[:, ci],
+                             R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                             R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                             R_perch[:, ci], R_bal_lr[:, ci], R_hour_lr[:, ci]])
+        try:
+            P_lgb_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
+        except Exception:
+            pass
+    R_lgb = rank_norm(P_lgb_all)
+    W_LGB = lgb_meta.get("blend_w_lgb", 0.10)
+    R_blend_v1 = (1 - W_LGB) * R_blend_v1 + W_LGB * R_lgb
+    print(f"Added LGB stacker @ w={W_LGB} (lifts OOF +0.0008 -> 0.9671)")
+
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
     # Build per-class meta predictions
@@ -492,9 +530,11 @@ print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
       f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
       f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + "
       f"HourLR={'YES' if HAS_HOUR_LR else 'NO'} + "
+      f"LGB={'YES' if HAS_LGB else 'NO'} + "
       f"MetaStacker={'YES' if HAS_META else 'NO'} + combined_prior(w={W_PRIOR})")
 expected_oof = "0.9580"
 if HAS_BAL_LR: expected_oof = "0.9647"
 if HAS_BAL_LR and HAS_HOUR_LR: expected_oof = "0.9663"
-if HAS_BAL_LR and HAS_HOUR_LR and HAS_META: expected_oof = "0.9667 (approx)"
+if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB: expected_oof = "0.9671"
+if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB and HAS_META: expected_oof = "0.9675"
 print(f"Expected OOF: {expected_oof}")
