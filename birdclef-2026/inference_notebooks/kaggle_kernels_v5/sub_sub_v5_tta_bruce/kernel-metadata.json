@@ -1,0 +1,25 @@
+{
+  "id": "adkasd/birdclef-2026-sub-v5-tta-bruce",
+  "title": "birdclef 2026 sub v5 tta bruce",
+  "code_file": "birdclef-2026-sub-v5-tta-bruce.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:c370a5ff133d162d17c2dca332b50f3e85c0b0ed1471ee18e98e3009eee80b08",
+  "machine_shape": "None",
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "dataset_sources": [
+    "brucewu1200/birdclef-2026-cvlb-assets-0911",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "rishikeshjani/perch-onnx-for-birdclef-2026",
+    "adkasd/birdclef-2026-priors-research"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}
