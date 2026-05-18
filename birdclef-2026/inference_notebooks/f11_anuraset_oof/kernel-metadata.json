@@ -1,0 +1,18 @@
+{
+  "id": "adkasd/bc26-f11-frog-specialist-oof",
+  "title": "bc26 f11 frog specialist oof",
+  "code_file": "f11_inference.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "dataset_sources": [
+    "lvweibin/birdclef-2026-f11-ep10-pytorch"
+  ]
+}
