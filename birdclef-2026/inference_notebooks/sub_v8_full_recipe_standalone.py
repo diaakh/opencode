@@ -105,6 +105,28 @@ except ImportError:
 # ============================================================================
 # Load model artifacts
 # ============================================================================
+
+# sklearn 1.6 compat: bundles pickled under sklearn 1.8 lose the
+# `multi_class` attribute on LogisticRegression, breaking predict_proba on
+# Kaggle's pinned 1.6.1. Restore it post-load.
+def _sklearn_compat_fix(obj):
+    from sklearn.linear_model import LogisticRegression as _LR
+    seen = set()
+    def walk(x):
+        i = id(x)
+        if i in seen: return
+        seen.add(i)
+        if isinstance(x, _LR) and not hasattr(x, "multi_class"):
+            x.multi_class = "auto"
+        if isinstance(x, dict):
+            for v in x.values(): walk(v)
+        elif isinstance(x, (list, tuple)):
+            for v in x: walk(v)
+        elif hasattr(x, "__dict__"):
+            for v in vars(x).values(): walk(v)
+    walk(obj)
+    return obj
+
 with open(BUNDLE_PATH, "rb") as f:
     bundle = pickle.load(f)
 scaler = bundle["clip_bundle"]["emb_scaler"]
@@ -142,6 +164,7 @@ bal_lr = None
 if HAS_BAL_LR:
     with open(BAL_LR_HITS[0], "rb") as f:
         bal_lr = pickle.load(f)
+    _sklearn_compat_fix(bal_lr)
     n_trained = sum(1 for m in bal_lr["lr_models"] if m is not None)
     print(f"Balanced LR: SVD={bal_lr['svd'].n_components}, {n_trained}/{len(bal_lr['classes'])} per-class models, "
           f"OOF AUC contribution -> {bal_lr.get('auc_oof', 'unknown')}")
@@ -151,6 +174,7 @@ meta_stacker = None
 if HAS_META:
     with open(META_HITS[0], "rb") as f:
         meta_stacker = pickle.load(f)
+    _sklearn_compat_fix(meta_stacker)
     n_trained = sum(1 for m in meta_stacker["meta_models"] if m is not None)
     print(f"Meta-stacker: {n_trained}/{len(meta_stacker['classes'])} per-class LR over "
           f"{len(meta_stacker['features'])} rank features, blend alpha={meta_stacker['blend_alpha']}")
@@ -160,6 +184,7 @@ hour_lr = None
 if HAS_HOUR_LR:
     with open(HOUR_LR_HITS[0], "rb") as f:
         hour_lr = pickle.load(f)
+    _sklearn_compat_fix(hour_lr)
     n_trained = len(hour_lr["hr_models"])
     print(f"Hour-LR: {n_trained} per-(bucket, class) models across "
           f"{len(set(k[0] for k in hour_lr['hr_models']))} hour buckets")
@@ -171,6 +196,7 @@ if HAS_LGB:
         import lightgbm as _lgb  # ensure available at inference
         with open(LGB_HITS[0], "rb") as f:
             lgb_meta = pickle.load(f)
+        _sklearn_compat_fix(lgb_meta)
         n_trained = sum(1 for m in lgb_meta["lgb_models"] if m is not None)
         print(f"LGB stacker: {n_trained}/{len(lgb_meta['classes'])} per-class models, "
               f"6 features, blend w_lgb={lgb_meta['blend_w_lgb']}, w_dist={lgb_meta['blend_w_dist']}")
@@ -184,6 +210,7 @@ mlp_bundle = None
 if HAS_MLP:
     with open(MLP_HITS[0], "rb") as f:
         mlp_bundle = pickle.load(f)
+    _sklearn_compat_fix(mlp_bundle)
     n_trained = sum(1 for m in mlp_bundle["mlp_ensembles"] if m is not None)
     print(f"MLP 5-seed: {n_trained}/{len(mlp_bundle['classes'])} per-class ensembles, "
           f"SVD={mlp_bundle['svd'].n_components}, blend alpha={mlp_bundle['blend_alpha']}, "
