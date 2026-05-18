@@ -46,13 +46,11 @@ df = pd.read_csv("submission_bruce_raw.csv")  # or however we name the raw Bruce
 prior_df = pd.read_csv("/kaggle/input/birdclef-2026-priors-research/pseudo_hour_priors.csv")
 prior_df = prior_df.set_index("hour")
 
-# 3. DEAD-HOUR FIX: fill hours 11-16 with global mean across covered hours
-covered = prior_df.sum(axis=1) > 0
-global_mean = prior_df.loc[covered].mean(axis=0)
-for h in range(24):
-    if h not in prior_df.index or not covered.loc[h]:
-        prior_df.loc[h] = global_mean
-prior_df = prior_df.sort_index()
+# 3. DEAD-HOUR FIX (replace global-mean with hour-safe gating)
+# RATIONALE: hours 11-16 are missing from train_soundscapes. Filling with
+# global mean = injecting night-biased predictions into possibly-daytime test
+# rows. Safer: leave those rows untouched. See DAYTIME_GAP_STRATEGY.md.
+HOURS_WITH_DATA = frozenset({0,1,2,3,4,5,6,7,8,9,10,17,18,19,20,21,22,23})
 
 # 4. Parse hour from each row_id
 def parse_hour(rid):
@@ -70,14 +68,21 @@ P_clip = np.clip(P, EPS, 1 - EPS)
 base_logit = np.log(P_clip / (1 - P_clip))
 
 prior_arr = np.zeros_like(P)
+valid_row = np.zeros(len(P), dtype=bool)
 for i, h in enumerate(hours):
-    if 0 <= h < 24:
+    if h in HOURS_WITH_DATA and h in prior_df.index:
+        valid_row[i] = True
         for ci, c in enumerate(prob_cols):
             if c in prior_df.columns:
                 prior_arr[i, ci] = prior_df.loc[h, c]
 
+# Apply shift ONLY on rows where we have prior data; leave unseen hours unchanged
 prior_logit = W_HOUR * np.log(np.clip(prior_arr, EPS, 1.0))
-P_new = 1.0 / (1.0 + np.exp(-(base_logit + prior_logit)))
+new_logit = base_logit.copy()
+new_logit[valid_row] = base_logit[valid_row] + prior_logit[valid_row]
+P_new = 1.0 / (1.0 + np.exp(-new_logit))
+print(f"Applied prior on {valid_row.sum()}/{len(P)} rows ({valid_row.mean()*100:.1f}%); "
+      f"{(~valid_row).sum()} rows untouched (hours outside train coverage)")
 
 df_new = pd.DataFrame(P_new, columns=prob_cols)
 df_new.insert(0, "row_id", df["row_id"])

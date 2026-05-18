@@ -1,0 +1,19 @@
+{
+  "id": "adkasd/bc26-long-convnext-on-unlabeled",
+  "title": "bc26 long convnext on unlabeled",
+  "code_file": "sed_on_unlabeled.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "majkel1337/long-convnextv2-tiny-onnx",
+    "tuckerarrants/perch-v2-no-dft-onnx"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}
