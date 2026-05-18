@@ -220,7 +220,12 @@ if HAS_MLP:
           f"OOF AUC={mlp_bundle.get('oof_auc', '?')}")
 
 # Prototype bundle (per-class Perch-embedding pure-call prototypes)
-# Adds prototype-similarity as a rank-space signal → +0.0023 OOF (0.9706→0.9729)
+# Adds prototype-similarity as a rank-space signal.
+# NOTE: original labeled-OOF measurement (+0.0023) was leaky — KNN DB contained the
+# labeled OOF rows. Clean LOFO measurement = neutral on OOF. For LB the test
+# files are NOT in the DB, so the prototype acts as a legitimate retrieval-based
+# external signal. Expected LB impact: small (-0.005 to +0.010 around blend).
+# Conservative default alpha=0.10.
 proto_bundle = None
 if HAS_PROTO:
     with open(PROTO_HITS[0], "rb") as f:
@@ -572,9 +577,9 @@ if HAS_MLP and R_mlp is not None:
 # Per-class Perch-embedding prototype from KNN-DB single-label rows.
 # Adds within-chorus disambiguation signal that complements all other models.
 if proto_bundle is not None and R_proto is not None:
-    ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.30)
+    ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.10)
     R_blend_v1 = (1 - ALPHA_PROTO) * R_blend_v1 + ALPHA_PROTO * R_proto
-    print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (lifts OOF +0.0023 -> 0.9729)")
+    print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (honest, clean DB)")
 
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
