@@ -78,6 +78,7 @@ LGB_HITS = list(Path("/kaggle/input").rglob("lgb_meta_bundle.pkl"))
 MLP_HITS = list(Path("/kaggle/input").rglob("mlp_5seed_bundle.pkl"))
 PROTO_HITS = list(Path("/kaggle/input").rglob("prototype_bundle.pkl"))
 EXT_RAG_HITS = list(Path("/kaggle/input").rglob("external_rag_bundle.pkl"))
+CN_RAG_HITS = list(Path("/kaggle/input").rglob("convnext_rag_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
@@ -87,6 +88,7 @@ HAS_LGB = bool(LGB_HITS)
 HAS_MLP = bool(MLP_HITS)
 HAS_PROTO = bool(PROTO_HITS)
 HAS_EXT_RAG = bool(EXT_RAG_HITS)
+HAS_CN_RAG = bool(CN_RAG_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -241,6 +243,21 @@ if HAS_PROTO:
 # External RAG bundle — 49k AnuraSet + Amazon Basin + Coffee Farms Perch embeddings.
 # Provides retrieval-based signal for the 42 classes with strong external coverage.
 # Per-bottleneck-frog OOF improvements: 22961 +0.046, 555146 +0.013, 517063 +0.013
+# ConvNeXt RAG bundle — 12k Perch embeddings paired with ConvNeXt predictions on
+# unlabeled BC2026 train_soundscapes. ConvNeXt is the long_convnextv2_tiny model
+# (LB ~0.94+), trained on different mel-CNN features. RAG over its predictions
+# provides genuinely orthogonal signal for the bottleneck chorus frogs.
+# Per-bottleneck-frog standalone AUCs: 22961=0.98, 1491113=0.89, 326272=0.74.
+cn_rag_bundle = None
+if HAS_CN_RAG:
+    with open(CN_RAG_HITS[0], "rb") as f:
+        cn_rag_bundle = pickle.load(f)
+    cn_emb = cn_rag_bundle["emb_cn"].astype(np.float32)
+    cn_preds = cn_rag_bundle["cn_preds"].astype(np.float32)
+    cn_K_list = cn_rag_bundle.get("K_list", [10, 30, 100])
+    cn_alpha = cn_rag_bundle.get("blend_alpha", 0.30)
+    print(f"ConvNeXt RAG: {cn_emb.shape[0]} rows × {cn_emb.shape[1]}d, K={cn_K_list}, alpha={cn_alpha}")
+
 ext_rag_bundle = None
 if HAS_EXT_RAG:
     with open(EXT_RAG_HITS[0], "rb") as f:
@@ -389,7 +406,7 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto, all_extrag = [], [], [], [], [], [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto, all_extrag, all_cnrag = [], [], [], [], [], [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
@@ -471,7 +488,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
                        if probe is not None else np.zeros_like(bruce_probs))
         bal_lr_probs = bal_lr_predict(emb)
         mlp_probs = mlp_predict(emb)
-        if proto_bundle is not None or ext_rag_bundle is not None:
+        if proto_bundle is not None or ext_rag_bundle is not None or cn_rag_bundle is not None:
             emb_n = normalize(emb)
         if proto_bundle is not None:
             proto_sim = (emb_n @ prototypes_mat.T).astype(np.float32)  # (B*W, 234)
@@ -498,6 +515,26 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
                 ext_rag += np.einsum("bk,bkc->bc", w, Yk) / len(ext_K_list)
         else:
             ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
+        # ConvNeXt RAG: multi-K retrieval against 12k Perch+ConvNeXt-pred pairs
+        if cn_rag_bundle is not None:
+            sims_c = emb_n @ cn_emb.T  # (B*W, 12283)
+            K_max_c = max(cn_K_list)
+            top_idx_c = np.argpartition(-sims_c, K_max_c, axis=1)[:, :K_max_c]
+            row_ix_c = np.arange(sims_c.shape[0])[:, None]
+            sims_top_c = sims_c[row_ix_c, top_idx_c]
+            order_c = np.argsort(-sims_top_c, axis=1)
+            top_idx_c = np.take_along_axis(top_idx_c, order_c, axis=1)
+            sims_top_c = np.take_along_axis(sims_top_c, order_c, axis=1)
+            cn_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
+            for K in cn_K_list:
+                w = np.maximum(sims_top_c[:, :K], 0).astype(np.float32)
+                w_sum = w.sum(axis=1, keepdims=True)
+                w_sum[w_sum == 0] = 1.0
+                w = w / w_sum
+                preds_k = cn_preds[top_idx_c[:, :K]]  # (B*W, K, 234)
+                cn_rag += np.einsum("bk,bkc->bc", w, preds_k) / len(cn_K_list)
+        else:
+            cn_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
         # For hour-conditional LR we need the per-window hour
         per_win_hours = []
         for bi, (fpath, _) in enumerate(batch_results):
@@ -526,6 +563,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_mlp.append(mlp_probs[s])
             all_proto.append(proto_sim[s])
             all_extrag.append(ext_rag[s])
+            all_cnrag.append(cn_rag[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -544,6 +582,7 @@ P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
 P_mlp_all = np.concatenate(all_mlp, axis=0)
 P_proto_all = np.concatenate(all_proto, axis=0) if proto_bundle is not None else None
 P_extrag_all = np.concatenate(all_extrag, axis=0) if ext_rag_bundle is not None else None
+P_cnrag_all = np.concatenate(all_cnrag, axis=0) if cn_rag_bundle is not None else None
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -561,6 +600,7 @@ R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
 R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
 R_proto = rank_norm(P_proto_all) if proto_bundle is not None else None
 R_extrag = rank_norm(P_extrag_all) if ext_rag_bundle is not None else None
+R_cnrag = rank_norm(P_cnrag_all) if cn_rag_bundle is not None else None
 
 # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
@@ -638,6 +678,15 @@ if ext_rag_bundle is not None and R_extrag is not None:
         + ALPHA_EXT * R_extrag[:, strong_mask_arr]
     )
     print(f"Added external-RAG on {strong_mask_arr.sum()} strong classes @ alpha={ALPHA_EXT} (lifts OOF +0.0011 → 0.9717)")
+
+# Step 2.95: ConvNeXt-RAG — multi-K retrieval against 12k Perch+ConvNeXt-pred pairs
+# from a separate mel-CNN model (long_convnextv2_tiny). Genuinely orthogonal signal.
+# Per-class CV-adaptive on labeled OOF: +0.0023 honest lift (0.9725 → 0.9748).
+# Especially strong on bottleneck Amphibia frogs (22961: +0.04, 1491113: +0.066, 326272: +0.05).
+if cn_rag_bundle is not None and R_cnrag is not None:
+    ALPHA_CN = cn_rag_bundle.get("blend_alpha", 0.30)
+    R_blend_v1 = (1 - ALPHA_CN) * R_blend_v1 + ALPHA_CN * R_cnrag
+    print(f"Added ConvNeXt-RAG @ alpha={ALPHA_CN} (lifts OOF +0.0023 → 0.9748)")
 
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
