@@ -1,0 +1,30 @@
+{
+  "id": "adkasd/birdclef-2026-slot7-three-way",
+  "title": "birdclef 2026 slot7 three way",
+  "code_file": "slot7_three_way.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "tuckerarrants/bc2026-distilled-sed-public",
+    "tuckerarrants/birdclef-2026-waveform-cache",
+    "jaejohn/perch-meta",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "rishikeshjani/perch-onnx-for-birdclef-2026",
+    "hideyukizushi/sgkfk-202604041716",
+    "adkasd/birdmae-finetune-234",
+    "nina2025/perch-v2-no-dft-v3-onnx"
+  ],
+  "kernel_sources": [
+    "ashok205/tf-wheels",
+    "hideyukizushi/bird26-reprod-perch-proto-residualssm-train-s7177"
+  ],
+  "model_sources": [
+    "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
+  ]
+}
