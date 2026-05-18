@@ -41,18 +41,32 @@ N_WIN = 12  # 12 × 5s = 60s per file
 COMP = Path("/kaggle/input/birdclef-2026")
 BRUCE = Path("/kaggle/input/birdclef-2026-cvlb-assets-0911")
 
-# Find Perch ONNX (Bruce's bundle has perch_v2_no_dft.onnx; fallback to rishikeshjani's)
-PERCH_PATHS = [
-    BRUCE / "perch_v2_no_dft.onnx",
-    Path("/kaggle/input/perch-onnx-for-birdclef-2026/perch_v2_no_dft.onnx"),
-    Path("/kaggle/input/perch-v2-no-dft-onnx/perch_v2_no_dft.onnx"),
-]
-PERCH_ONNX = next((p for p in PERCH_PATHS if p.exists()), None)
-print(f"Perch ONNX: {PERCH_ONNX}")
-assert PERCH_ONNX is not None, "Perch ONNX not found in any expected location"
+# Glob for Perch ONNX anywhere under /kaggle/input
+perch_onnx_candidates = sorted(_glob.glob("/kaggle/input/**/perch_v2_no_dft.onnx", recursive=True))
+if not perch_onnx_candidates:
+    perch_onnx_candidates = sorted(_glob.glob("/kaggle/input/**/perch_v2*.onnx", recursive=True))
+print("Perch ONNX candidates:")
+for p in perch_onnx_candidates:
+    print(f"  {p} ({os.path.getsize(p)/1e6:.1f} MB)")
+PERCH_ONNX = perch_onnx_candidates[0] if perch_onnx_candidates else None
+print(f"Using Perch ONNX: {PERCH_ONNX}")
+assert PERCH_ONNX is not None, "No Perch v2 ONNX found in /kaggle/input"
 
-CLIP_BUNDLE_PATH = BRUCE / "clip_student_bundle.pkl"
-print(f"Bruce bundle: {CLIP_BUNDLE_PATH.exists()}")
+# Glob for Bruce CLIP-Ridge bundle
+clip_bundle_candidates = sorted(_glob.glob("/kaggle/input/**/clip_student_bundle.pkl", recursive=True))
+print("CLIP bundle candidates:")
+for p in clip_bundle_candidates:
+    print(f"  {p} ({os.path.getsize(p)/1e6:.2f} MB)")
+CLIP_BUNDLE_PATH = clip_bundle_candidates[0] if clip_bundle_candidates else None
+assert CLIP_BUNDLE_PATH is not None, "No clip_student_bundle.pkl found"
+print(f"Using Bruce bundle: {CLIP_BUNDLE_PATH}")
+
+# Also re-locate COMP (competition data) — script kernels mount it at /kaggle/input/competitions/<name>/
+comp_candidates = sorted(_glob.glob("/kaggle/input/**/birdclef-2026", recursive=False))
+if not comp_candidates:
+    comp_candidates = sorted([p for p in _glob.glob("/kaggle/input/competitions/*") if 'birdclef' in p])
+COMP = Path(comp_candidates[0]) if comp_candidates else Path("/kaggle/input/birdclef-2026")
+print(f"Using competition dir: {COMP} (exists={COMP.exists()})")
 
 # ---------- Labels + Y matrix ----------
 labels = pd.read_csv(COMP / "train_soundscapes_labels.csv").drop_duplicates()
