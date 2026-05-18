@@ -17,6 +17,5 @@
   ],
   "model_sources": [
     "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
-  ],
-  "docker_image": "gcr.io/kaggle-images/python:v168"
+  ]
 }
