@@ -1,13 +1,5 @@
 # ============================================================================
 # SLOT 5: exp019 (LB anchor 0.949) + sub_v8 (OOF 0.9717) rank-blend at 70/30
-# 
-# Both pipelines run sequentially in one notebook:
-# 1. exp019_fast: Karnakbayev EoS.4 base + prior+rank-aware-scaling layers
-# 2. sub_v8: Bruce CLIP-Ridge + megaKNN + 5-seed MLP + ext-RAG + prototype
-# 3. Final blend: rank-norm both CSVs, weighted average at 0.70/0.30
-# 
-# Expected runtime: ~50 min for 600 files (4.5-5 sec/file)
-# Target LB: 0.95-0.96 (vs exp019 alone 0.949)
 # ============================================================================
 
 # ---------- exp019 portion ----------
@@ -8222,9 +8214,26 @@ if not _single_solution:
 
 if not _single_solution:
     submission = f_add()
-    submission.to_csv(f"exp019_submission.csv", index = True)
+    submission.to_csv(f"submission.csv", index = True)
     submission
 
+
+
+
+
+# ============================================================================
+# Bridge: copy exp019's submission.csv → exp019_submission.csv
+# ============================================================================
+import shutil as _shutil
+from pathlib import Path as _Path
+for _src_name in ["submission.csv", "/kaggle/working/submission.csv"]:
+    _src = _Path(_src_name)
+    if _src.exists():
+        _shutil.copy(_src, "exp019_submission.csv")
+        print(f"[bridge] Copied {_src} → exp019_submission.csv")
+        break
+else:
+    print("[bridge] WARNING: exp019 submission.csv not found — sub_v8 will overwrite")
 
 
 # ---------- sub_v8 portion ----------
@@ -8933,7 +8942,7 @@ print(f"Expected OOF: {expected_oof}")
 # FINAL BLEND: exp019 (70%) + sub_v8 (30%) rank-blend
 # ============================================================================
 print("\n" + "="*80)
-print("FINAL BLEND: rank-normalize each CSV, weighted average, write submission.csv")
+print("FINAL BLEND: rank-normalize both CSVs, weighted average, write submission.csv")
 print("="*80)
 
 import pandas as pd
@@ -8944,84 +8953,52 @@ from pathlib import Path
 def _rank_norm_cols(arr):
     R = np.zeros_like(arr, dtype=np.float32)
     for c in range(arr.shape[1]):
-        R[:, c] = rankdata(arr[:, c], method="average") / len(arr)
+        R[:, c] = rankdata(arr[:, c], method="average") / max(len(arr), 1)
     return R
 
-# Try multiple possible paths for both CSV outputs
-exp019_paths = ["exp019_submission.csv", "/kaggle/working/exp019_submission.csv"]
-subv8_paths = ["subv8_submission.csv", "/kaggle/working/subv8_submission.csv"]
-
 exp019_csv = None
-for p in exp019_paths:
-    if Path(p).exists():
-        exp019_csv = p; break
+for p in ["exp019_submission.csv", "/kaggle/working/exp019_submission.csv"]:
+    if Path(p).exists(): exp019_csv = p; break
 subv8_csv = None
-for p in subv8_paths:
-    if Path(p).exists():
-        subv8_csv = p; break
+for p in ["subv8_submission.csv", "/kaggle/working/subv8_submission.csv"]:
+    if Path(p).exists(): subv8_csv = p; break
 
-print(f"  exp019 csv: {exp019_csv}")
-print(f"  sub_v8 csv: {subv8_csv}")
+print(f"  exp019_csv: {exp019_csv}")
+print(f"  subv8_csv:  {subv8_csv}")
 
 if exp019_csv and subv8_csv:
     df_exp = pd.read_csv(exp019_csv)
     df_sub = pd.read_csv(subv8_csv)
-    
-    # Identify class column structure
-    if "row_id" in df_exp.columns:
-        id_col_exp = "row_id"
-    elif df_exp.columns[0] == "Unnamed: 0":
-        id_col_exp = "Unnamed: 0"
-    else:
-        id_col_exp = df_exp.columns[0]
-    
-    if "row_id" in df_sub.columns:
-        id_col_sub = "row_id"
-    else:
-        id_col_sub = df_sub.columns[0]
-    
-    print(f"  exp019 id col: {id_col_exp}, sub_v8 id col: {id_col_sub}")
     print(f"  exp019 shape: {df_exp.shape}, sub_v8 shape: {df_sub.shape}")
-    
+    # Ensure exp019 has row_id column (it may have written with index=True)
+    if "row_id" not in df_exp.columns:
+        first_col = df_exp.columns[0]
+        df_exp = df_exp.rename(columns={first_col: "row_id"})
     # Align by row_id
-    if not df_exp[id_col_exp].equals(df_sub[id_col_sub]):
+    if not df_exp["row_id"].equals(df_sub["row_id"]):
         print("  Reindexing sub_v8 to match exp019 row order...")
-        df_sub = df_sub.set_index(id_col_sub).reindex(df_exp[id_col_exp]).reset_index()
-    
-    # Get class columns (everything not the id)
-    class_cols_exp = [c for c in df_exp.columns if c != id_col_exp]
-    class_cols_sub = [c for c in df_sub.columns if c != id_col_sub]
-    common = [c for c in class_cols_exp if c in class_cols_sub]
-    print(f"  Common class columns: {len(common)} (exp019 has {len(class_cols_exp)}, sub_v8 has {len(class_cols_sub)})")
-    
+        df_sub = df_sub.set_index("row_id").reindex(df_exp["row_id"]).reset_index()
+    common = [c for c in df_exp.columns if c != "row_id" and c in df_sub.columns]
+    print(f"  Common class cols: {len(common)}")
     M_exp = df_exp[common].to_numpy(dtype=np.float32)
     M_sub = df_sub[common].to_numpy(dtype=np.float32)
-    
     R_exp = _rank_norm_cols(M_exp)
     R_sub = _rank_norm_cols(M_sub)
-    
     W_EXP = 0.70
     W_SUB = 0.30
     R_final = W_EXP * R_exp + W_SUB * R_sub
-    print(f"  Blend: {W_EXP}*exp019 + {W_SUB}*sub_v8")
-    print(f"  Final range: [{R_final.min():.4f}, {R_final.max():.4f}]")
-    
-    out = df_exp[[id_col_exp]].copy()
-    # Rename id column to row_id (Kaggle format)
-    out.columns = ["row_id"]
+    out = df_exp[["row_id"]].copy()
     for i, c in enumerate(common):
         out[c] = R_final[:, i]
     out.to_csv("submission.csv", index=False)
     print(f"  Wrote submission.csv: {out.shape[0]} rows × {out.shape[1]} cols")
+    print(f"  Final range: [{R_final.min():.4f}, {R_final.max():.4f}]")
 else:
-    print("  WARNING: missing one of the intermediate CSVs — falling back")
-    # Fall back to whichever exists
+    print("  Falling back to whichever exists")
     if exp019_csv:
-        pd.read_csv(exp019_csv).to_csv("submission.csv", index=False)
+        _shutil.copy(exp019_csv, "submission.csv")
         print(f"  Used exp019 alone")
     elif subv8_csv:
-        pd.read_csv(subv8_csv).to_csv("submission.csv", index=False)
+        _shutil.copy(subv8_csv, "submission.csv")
         print(f"  Used sub_v8 alone")
-    else:
-        raise RuntimeError("Neither exp019 nor sub_v8 wrote a submission.csv")
 
