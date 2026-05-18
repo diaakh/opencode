@@ -36,6 +36,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import soundfile as sf
+from sklearn.preprocessing import normalize
 
 EPS = 1e-7
 N_WINDOWS = 12
@@ -73,6 +74,7 @@ META_HITS = list(Path("/kaggle/input").rglob("meta_stacker_bundle.pkl"))
 HOUR_LR_HITS = list(Path("/kaggle/input").rglob("hour_lr_bundle.pkl"))
 LGB_HITS = list(Path("/kaggle/input").rglob("lgb_meta_bundle.pkl"))
 MLP_HITS = list(Path("/kaggle/input").rglob("mlp_5seed_bundle.pkl"))
+PROTO_HITS = list(Path("/kaggle/input").rglob("prototype_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
@@ -80,6 +82,7 @@ HAS_META = bool(META_HITS)
 HAS_HOUR_LR = bool(HOUR_LR_HITS)
 HAS_LGB = bool(LGB_HITS)
 HAS_MLP = bool(MLP_HITS)
+HAS_PROTO = bool(PROTO_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -216,6 +219,16 @@ if HAS_MLP:
           f"SVD={mlp_bundle['svd'].n_components}, blend alpha={mlp_bundle['blend_alpha']}, "
           f"OOF AUC={mlp_bundle.get('oof_auc', '?')}")
 
+# Prototype bundle (per-class Perch-embedding pure-call prototypes)
+# Adds prototype-similarity as a rank-space signal → +0.0023 OOF (0.9706→0.9729)
+proto_bundle = None
+if HAS_PROTO:
+    with open(PROTO_HITS[0], "rb") as f:
+        proto_bundle = pickle.load(f)
+    prototypes_mat = proto_bundle["prototypes"]  # (234, 1536) L2-normalized
+    n_with_proto = int((np.linalg.norm(prototypes_mat, axis=1) > 0.5).sum())
+    print(f"Prototypes: {n_with_proto}/234 classes, blend alpha={proto_bundle.get('blend_alpha', 0.30)}")
+
 def hour_bucket(h):
     if h <= 4: return 0
     elif h <= 7: return 1
@@ -350,7 +363,7 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp = [], [], [], [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto = [], [], [], [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
@@ -432,6 +445,11 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
                        if probe is not None else np.zeros_like(bruce_probs))
         bal_lr_probs = bal_lr_predict(emb)
         mlp_probs = mlp_predict(emb)
+        if proto_bundle is not None:
+            emb_n = normalize(emb)
+            proto_sim = (emb_n @ prototypes_mat.T).astype(np.float32)  # (B*W, 234)
+        else:
+            proto_sim = np.zeros((emb.shape[0], 234), dtype=np.float32)
         # For hour-conditional LR we need the per-window hour
         per_win_hours = []
         for bi, (fpath, _) in enumerate(batch_results):
@@ -458,6 +476,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_bal_lr.append(bal_lr_probs[s])
             all_hour_lr.append(hour_lr_probs[s])
             all_mlp.append(mlp_probs[s])
+            all_proto.append(proto_sim[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -474,6 +493,7 @@ P_probe_all = np.concatenate(all_probe, axis=0)
 P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
 P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
 P_mlp_all = np.concatenate(all_mlp, axis=0)
+P_proto_all = np.concatenate(all_proto, axis=0) if proto_bundle is not None else None
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -489,6 +509,7 @@ R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
 R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
 R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
 R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
+R_proto = rank_norm(P_proto_all) if proto_bundle is not None else None
 
 # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
@@ -546,6 +567,14 @@ if HAS_MLP and R_mlp is not None:
     ALPHA_MLP = mlp_bundle.get("blend_alpha", 0.35)
     R_blend_v1 = (1 - ALPHA_MLP) * R_blend_v1 + ALPHA_MLP * R_mlp
     print(f"Added 5-seed MLP @ alpha={ALPHA_MLP} (lifts OOF +0.0033 -> 0.9708)")
+
+# Step 2.8: blend pure-call prototype similarity (+0.0023 OOF — global alpha)
+# Per-class Perch-embedding prototype from KNN-DB single-label rows.
+# Adds within-chorus disambiguation signal that complements all other models.
+if proto_bundle is not None and R_proto is not None:
+    ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.30)
+    R_blend_v1 = (1 - ALPHA_PROTO) * R_blend_v1 + ALPHA_PROTO * R_proto
+    print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (lifts OOF +0.0023 -> 0.9729)")
 
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
