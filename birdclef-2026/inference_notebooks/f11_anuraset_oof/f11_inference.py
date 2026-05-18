@@ -114,7 +114,7 @@ print(f"Mel shape: {mel.shape}")  # expect (128, T)
 # EfficientNet-B1 input typically 240x240 but adapt to mel size
 # BirdSet model: input is 3-channel (RGB-style) or 1-channel grayscale mel
 # Default to 3 channels for transformers EfficientNet
-in_ch = 3
+in_ch = 1
 print(f"Conv expects {in_ch} channels")
 
 # Load labels
