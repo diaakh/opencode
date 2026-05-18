@@ -8614,326 +8614,328 @@ def knn_predict(emb_query):
 # Main inference
 # ============================================================================
 test_files = sorted(TEST_DIR.glob("*.ogg"))
+_NO_TEST_FILES = False
 if not test_files:
     print("No test files — emitting all-zero submission")
     out_df = samp.copy()
     out_df.iloc[:, 1:] = 0.0
     out_df.to_csv("subv8_submission.csv", index=False)
-    sys.exit(0)
+    _NO_TEST_FILES = True
 
-print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
-ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
+if not _NO_TEST_FILES:
+    print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
+    ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto, all_extrag = [], [], [], [], [], [], [], [], []
-all_hours = []
-row_ids_all = []
-t0 = time.time()
+    all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr, all_mlp, all_proto, all_extrag = [], [], [], [], [], [], [], [], []
+    all_hours = []
+    row_ids_all = []
+    t0 = time.time()
 
-def bal_lr_predict(emb_query):
-    """Apply SVD then per-class LogisticRegression. Returns (n, 234)."""
-    if bal_lr is None:
-        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
-    emb_red = bal_lr["svd"].transform(emb_query)
-    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
-    for ci, m in enumerate(bal_lr["lr_models"]):
-        if m is None: continue
-        out[:, ci] = m.predict_proba(emb_red)[:, 1].astype(np.float32)
-    return out
-
-def mlp_predict(emb_query):
-    """5-seed MLP ensemble per class. Returns (n, 234) — average over seeds."""
-    if mlp_bundle is None:
-        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
-    emb_red = mlp_bundle["svd"].transform(emb_query)
-    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
-    for ci, ens in enumerate(mlp_bundle["mlp_ensembles"]):
-        if ens is None: continue
-        preds = []
-        for m in ens:
-            try:
-                preds.append(m.predict_proba(emb_red)[:, 1])
-            except Exception:
-                pass
-        if preds:
-            out[:, ci] = np.mean(preds, axis=0).astype(np.float32)
-    return out
-
-def hour_lr_predict(emb_query, hours_query):
-    """Per-(hour_bucket, class) LogisticRegression. Returns (n, 234)."""
-    if hour_lr is None:
-        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
-    emb_red = hour_lr["svd"].transform(emb_query)
-    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
-    buckets = np.array([hour_bucket(h) for h in hours_query])
-    for hb in set(buckets.tolist()):
-        rows = np.where(buckets == hb)[0]
-        if len(rows) == 0: continue
-        for ci in range(234):
-            m = hour_lr["hr_models"].get((hb, ci))
+    def bal_lr_predict(emb_query):
+        """Apply SVD then per-class LogisticRegression. Returns (n, 234)."""
+        if bal_lr is None:
+            return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+        emb_red = bal_lr["svd"].transform(emb_query)
+        out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+        for ci, m in enumerate(bal_lr["lr_models"]):
             if m is None: continue
+            out[:, ci] = m.predict_proba(emb_red)[:, 1].astype(np.float32)
+        return out
+
+    def mlp_predict(emb_query):
+        """5-seed MLP ensemble per class. Returns (n, 234) — average over seeds."""
+        if mlp_bundle is None:
+            return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+        emb_red = mlp_bundle["svd"].transform(emb_query)
+        out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+        for ci, ens in enumerate(mlp_bundle["mlp_ensembles"]):
+            if ens is None: continue
+            preds = []
+            for m in ens:
+                try:
+                    preds.append(m.predict_proba(emb_red)[:, 1])
+                except Exception:
+                    pass
+            if preds:
+                out[:, ci] = np.mean(preds, axis=0).astype(np.float32)
+        return out
+
+    def hour_lr_predict(emb_query, hours_query):
+        """Per-(hour_bucket, class) LogisticRegression. Returns (n, 234)."""
+        if hour_lr is None:
+            return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+        emb_red = hour_lr["svd"].transform(emb_query)
+        out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+        buckets = np.array([hour_bucket(h) for h in hours_query])
+        for hb in set(buckets.tolist()):
+            rows = np.where(buckets == hb)[0]
+            if len(rows) == 0: continue
+            for ci in range(234):
+                m = hour_lr["hr_models"].get((hb, ci))
+                if m is None: continue
+                try:
+                    out[rows, ci] = m.predict_proba(emb_red[rows])[:, 1].astype(np.float32)
+                except Exception:
+                    pass
+        return out
+
+    import concurrent.futures
+    def load_and_chunk(p):
+        return p, chunk_windows(load_audio(p))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        next_batch = test_files[:BATCH_FILES]
+        next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+
+        for start in range(0, len(test_files), BATCH_FILES):
+            batch_results = [f.result() for f in next_futures]
+            next_start = start + BATCH_FILES
+            if next_start < len(test_files):
+                next_batch = test_files[next_start:next_start + BATCH_FILES]
+                next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+
+            bn = len(batch_results)
+            x = np.empty((bn * N_WINDOWS, SAMPS), dtype=np.float32)
+            for bi, (_, yw) in enumerate(batch_results):
+                x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
+
+            emb, logit = perch_predict(x)
+            bruce_logits = bruce_predict(emb, logit)
+            bruce_probs = 1.0 / (1.0 + np.exp(-bruce_logits))
+            perch_probs = 1.0 / (1.0 + np.exp(-logit))
+            knn_probs = knn_predict(emb)
+            probe_probs = (1.0 / (1.0 + np.exp(-probe.predict(emb)))
+                           if probe is not None else np.zeros_like(bruce_probs))
+            bal_lr_probs = bal_lr_predict(emb)
+            mlp_probs = mlp_predict(emb)
+            if proto_bundle is not None or ext_rag_bundle is not None:
+                emb_n = normalize(emb)
+            if proto_bundle is not None:
+                proto_sim = (emb_n @ prototypes_mat.T).astype(np.float32)  # (B*W, 234)
+            else:
+                proto_sim = np.zeros((emb.shape[0], 234), dtype=np.float32)
+            # External RAG: multi-K retrieval against 49k Perch embeddings → per-class soft labels
+            if ext_rag_bundle is not None:
+                sims_e = emb_n @ ext_emb.T  # (B*W, 49520)
+                # Sort once for largest K, slice for smaller K
+                K_max = max(ext_K_list)
+                top_idx = np.argpartition(-sims_e, K_max, axis=1)[:, :K_max]
+                row_ix = np.arange(sims_e.shape[0])[:, None]
+                sims_top = sims_e[row_ix, top_idx]
+                order = np.argsort(-sims_top, axis=1)
+                top_idx = np.take_along_axis(top_idx, order, axis=1)
+                sims_top = np.take_along_axis(sims_top, order, axis=1)
+                ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
+                for K in ext_K_list:
+                    w = np.maximum(sims_top[:, :K], 0).astype(np.float32)
+                    w_sum = w.sum(axis=1, keepdims=True)
+                    w_sum[w_sum == 0] = 1.0
+                    w = w / w_sum
+                    Yk = ext_Y[top_idx[:, :K]]  # (B*W, K, 234)
+                    ext_rag += np.einsum("bk,bkc->bc", w, Yk) / len(ext_K_list)
+            else:
+                ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
+            # For hour-conditional LR we need the per-window hour
+            per_win_hours = []
+            for bi, (fpath, _) in enumerate(batch_results):
+                m = ROW_RE.search(fpath.stem)
+                h = int(m.group(2)[:2]) if m else 0
+                per_win_hours.extend([h] * N_WINDOWS)
+            hour_lr_probs = hour_lr_predict(emb, np.array(per_win_hours, dtype=np.int32))
+
+            for bi, (fpath, _) in enumerate(batch_results):
+                s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
+                stem = fpath.stem
+                m = ROW_RE.search(stem)
+                hour = int(m.group(2)[:2]) if m else 0
+                for i in range(N_WINDOWS):
+                    row_ids_all.append(f"{stem}_{(i + 1) * WIN_SEC}")
+                    all_hours.append(hour)
+
+                # Within-file smoothing on Bruce
+                bp_sm = smooth_within_file(bruce_probs[s])
+                all_bruce.append(bp_sm)
+                all_perch.append(perch_probs[s])
+                all_knn.append(knn_probs[s])
+                all_probe.append(probe_probs[s])
+                all_bal_lr.append(bal_lr_probs[s])
+                all_hour_lr.append(hour_lr_probs[s])
+                all_mlp.append(mlp_probs[s])
+                all_proto.append(proto_sim[s])
+                all_extrag.append(ext_rag[s])
+
+            done = start + bn
+            if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
+                el = time.time() - t0
+                rate = done / max(el, 1.0)
+                eta = (len(test_files) - done) / max(rate, 0.01)
+                print(f"  [{done}/{len(test_files)}] elapsed={el:.0f}s "
+                      f"rate={rate:.2f} files/s eta={eta:.0f}s")
+
+    P_bruce_all = np.concatenate(all_bruce, axis=0)
+    P_perch_all = np.concatenate(all_perch, axis=0)
+    P_knn_all = np.concatenate(all_knn, axis=0)
+    P_probe_all = np.concatenate(all_probe, axis=0)
+    P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
+    P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
+    P_mlp_all = np.concatenate(all_mlp, axis=0)
+    P_proto_all = np.concatenate(all_proto, axis=0) if proto_bundle is not None else None
+    P_extrag_all = np.concatenate(all_extrag, axis=0) if ext_rag_bundle is not None else None
+    hours = np.array(all_hours, dtype=np.int32)
+    print(f"\nInference done in {time.time()-t0:.0f}s. "
+          f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
+
+    # ============================================================================
+    # Cross-file rank-normalize + weighted blend + prior
+    # ============================================================================
+    print("Computing cross-file rank-norm...")
+    R_bruce = rank_norm(P_bruce_all)
+    R_perch = rank_norm(P_perch_all)
+    R_knn = rank_norm(P_knn_all) if HAS_KNN else None
+    R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
+    R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
+    R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
+    R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
+    R_proto = rank_norm(P_proto_all) if proto_bundle is not None else None
+    R_extrag = rank_norm(P_extrag_all) if ext_rag_bundle is not None else None
+
+    # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
+    if HAS_KNN and HAS_PROBE:
+        R_base = 0.30*R_bruce + 0.40*R_knn + 0.20*R_probe + 0.10*R_perch
+        print("Base blend: 0.30 Bruce_sm + 0.40 KNN + 0.20 Probe + 0.10 Perch")
+    elif HAS_KNN:
+        R_base = 0.50*R_bruce + 0.40*R_knn + 0.10*R_perch
+        print("Fallback base (no Probe): 0.50 Bruce_sm + 0.40 KNN + 0.10 Perch")
+    elif HAS_PROBE:
+        R_base = 0.50*R_bruce + 0.30*R_probe + 0.20*R_perch
+        print("Fallback base (no KNN): 0.50 Bruce_sm + 0.30 Probe + 0.20 Perch")
+    else:
+        R_base = 0.70*R_bruce + 0.30*R_perch
+        print("Minimum base (Bruce + Perch only)")
+
+    # Step 2: blend balanced LR (alone or ensembled with hour-conditional LR) on top
+    # OOF measurements:
+    #   R_base + 0.55 * R_bal_lr                        = 0.9647 (+0.0067)
+    #   R_base + 0.55 * (R_bal_lr + R_hour_lr)/2        = 0.9663 (+0.0083) ⭐
+    if HAS_BAL_LR and HAS_HOUR_LR:
+        ALPHA_LR = 0.55
+        R_lr_combined = 0.5 * R_bal_lr + 0.5 * R_hour_lr
+        R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_lr_combined
+        print(f"Added balanced+hour LR ensemble @ alpha={ALPHA_LR} (lifts OOF +0.0083 -> 0.9663)")
+    elif HAS_BAL_LR:
+        ALPHA_LR = bal_lr.get("alpha", 0.55)
+        R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
+        print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF +0.0067)")
+    else:
+        R_blend_v1 = R_base
+        print("No balanced LR available")
+
+    # Step 2.5: blend LightGBM meta-stacker on top (final +0.0012 OOF)
+    if HAS_LGB and HAS_BAL_LR and HAS_HOUR_LR:
+        n_rows = R_bruce.shape[0]
+        P_lgb_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
+        for ci, m in enumerate(lgb_meta["lgb_models"]):
+            if m is None: continue
+            # 6 features in this exact order: Bruce, KNN, Probe, Perch, BalLR, HourLR
+            X = np.column_stack([R_bruce[:, ci],
+                                 R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                                 R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                                 R_perch[:, ci], R_bal_lr[:, ci], R_hour_lr[:, ci]])
             try:
-                out[rows, ci] = m.predict_proba(emb_red[rows])[:, 1].astype(np.float32)
+                P_lgb_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
             except Exception:
                 pass
-    return out
+        R_lgb = rank_norm(P_lgb_all)
+        W_LGB = lgb_meta.get("blend_w_lgb", 0.10)
+        R_blend_v1 = (1 - W_LGB) * R_blend_v1 + W_LGB * R_lgb
+        print(f"Added LGB stacker @ w={W_LGB} (lifts OOF +0.0008 -> 0.9671)")
 
-import concurrent.futures
-def load_and_chunk(p):
-    return p, chunk_windows(load_audio(p))
+    # Step 2.7: blend MLP 5-seed ensemble on top (+0.0033 OOF — biggest stacker win)
+    if HAS_MLP and R_mlp is not None:
+        ALPHA_MLP = mlp_bundle.get("blend_alpha", 0.35)
+        R_blend_v1 = (1 - ALPHA_MLP) * R_blend_v1 + ALPHA_MLP * R_mlp
+        print(f"Added 5-seed MLP @ alpha={ALPHA_MLP} (lifts OOF +0.0033 -> 0.9708)")
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-    next_batch = test_files[:BATCH_FILES]
-    next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+    # Step 2.8: blend pure-call prototype similarity (+0.0023 OOF — global alpha)
+    # Per-class Perch-embedding prototype from KNN-DB single-label rows.
+    # Adds within-chorus disambiguation signal that complements all other models.
+    if proto_bundle is not None and R_proto is not None:
+        ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.10)
+        R_blend_v1 = (1 - ALPHA_PROTO) * R_blend_v1 + ALPHA_PROTO * R_proto
+        print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (honest, clean DB)")
 
-    for start in range(0, len(test_files), BATCH_FILES):
-        batch_results = [f.result() for f in next_futures]
-        next_start = start + BATCH_FILES
-        if next_start < len(test_files):
-            next_batch = test_files[next_start:next_start + BATCH_FILES]
-            next_futures = [pool.submit(load_and_chunk, p) for p in next_batch]
+    # Step 2.9: External RAG (multi-K AnuraSet + Amazon Basin + Coffee Farms retrieval)
+    # Targeted on 42 strong-coverage classes. Honest +0.0011 → 0.9717 OOF.
+    if ext_rag_bundle is not None and R_extrag is not None:
+        ALPHA_EXT = ext_rag_bundle.get("blend_alpha", 0.40)
+        strong_mask_arr = ext_rag_bundle["strong_mask"]
+        # Apply only on strong-coverage classes
+        R_blend_v1[:, strong_mask_arr] = (
+            (1 - ALPHA_EXT) * R_blend_v1[:, strong_mask_arr]
+            + ALPHA_EXT * R_extrag[:, strong_mask_arr]
+        )
+        print(f"Added external-RAG on {strong_mask_arr.sum()} strong classes @ alpha={ALPHA_EXT} (lifts OOF +0.0011 → 0.9717)")
 
-        bn = len(batch_results)
-        x = np.empty((bn * N_WINDOWS, SAMPS), dtype=np.float32)
-        for bi, (_, yw) in enumerate(batch_results):
-            x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
+    # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
+    if HAS_META:
+        # Build per-class meta predictions
+        n_rows = R_bruce.shape[0]
+        P_meta_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
+        for ci, m in enumerate(meta_stacker["meta_models"]):
+            if m is None: continue
+            # Stack 5 features for this class across all rows
+            if HAS_BAL_LR:
+                X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                                     R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                                     R_perch[:, ci], R_bal_lr[:, ci]])
+            else:
+                # Mirror with zeros for missing models so the LR sees the same feature shape
+                X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
+                                     R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
+                                     R_perch[:, ci], np.full(n_rows, 0.5)])
+            try:
+                P_meta_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
+            except Exception:
+                pass
+        R_meta = rank_norm(P_meta_all)
+        ALPHA_META = meta_stacker["blend_alpha"]
+        blend = (1 - ALPHA_META) * R_blend_v1 + ALPHA_META * R_meta
+        print(f"Added meta-stacker @ alpha={ALPHA_META} (lifts OOF by +0.0007 -> 0.9654)")
+    else:
+        blend = R_blend_v1
+        print("No meta-stacker available (would have added +0.0007 OOF)")
 
-        emb, logit = perch_predict(x)
-        bruce_logits = bruce_predict(emb, logit)
-        bruce_probs = 1.0 / (1.0 + np.exp(-bruce_logits))
-        perch_probs = 1.0 / (1.0 + np.exp(-logit))
-        knn_probs = knn_predict(emb)
-        probe_probs = (1.0 / (1.0 + np.exp(-probe.predict(emb)))
-                       if probe is not None else np.zeros_like(bruce_probs))
-        bal_lr_probs = bal_lr_predict(emb)
-        mlp_probs = mlp_predict(emb)
-        if proto_bundle is not None or ext_rag_bundle is not None:
-            emb_n = normalize(emb)
-        if proto_bundle is not None:
-            proto_sim = (emb_n @ prototypes_mat.T).astype(np.float32)  # (B*W, 234)
-        else:
-            proto_sim = np.zeros((emb.shape[0], 234), dtype=np.float32)
-        # External RAG: multi-K retrieval against 49k Perch embeddings → per-class soft labels
-        if ext_rag_bundle is not None:
-            sims_e = emb_n @ ext_emb.T  # (B*W, 49520)
-            # Sort once for largest K, slice for smaller K
-            K_max = max(ext_K_list)
-            top_idx = np.argpartition(-sims_e, K_max, axis=1)[:, :K_max]
-            row_ix = np.arange(sims_e.shape[0])[:, None]
-            sims_top = sims_e[row_ix, top_idx]
-            order = np.argsort(-sims_top, axis=1)
-            top_idx = np.take_along_axis(top_idx, order, axis=1)
-            sims_top = np.take_along_axis(sims_top, order, axis=1)
-            ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
-            for K in ext_K_list:
-                w = np.maximum(sims_top[:, :K], 0).astype(np.float32)
-                w_sum = w.sum(axis=1, keepdims=True)
-                w_sum[w_sum == 0] = 1.0
-                w = w / w_sum
-                Yk = ext_Y[top_idx[:, :K]]  # (B*W, K, 234)
-                ext_rag += np.einsum("bk,bkc->bc", w, Yk) / len(ext_K_list)
-        else:
-            ext_rag = np.zeros((emb.shape[0], 234), dtype=np.float32)
-        # For hour-conditional LR we need the per-window hour
-        per_win_hours = []
-        for bi, (fpath, _) in enumerate(batch_results):
-            m = ROW_RE.search(fpath.stem)
-            h = int(m.group(2)[:2]) if m else 0
-            per_win_hours.extend([h] * N_WINDOWS)
-        hour_lr_probs = hour_lr_predict(emb, np.array(per_win_hours, dtype=np.int32))
+    # Apply combined hour prior
+    W_PRIOR = 2.0 if HAS_MLP else 2.5  # MLP recipe plateau peaks at w=2.0; old recipe at 2.5
+    logit_p = np.log(np.clip(blend, EPS, 1-EPS) / np.clip(1-blend, EPS, 1))
+    valid = (hours >= 0) & (hours < 24)
+    shift = np.zeros_like(blend, dtype=np.float64)
+    shift[valid] = W_PRIOR * log_hp[hours[valid]]
+    final = 1.0 / (1.0 + np.exp(-(logit_p + shift)))
+    final = np.clip(final, 0.0, 1.0).astype(np.float32)
 
-        for bi, (fpath, _) in enumerate(batch_results):
-            s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
-            stem = fpath.stem
-            m = ROW_RE.search(stem)
-            hour = int(m.group(2)[:2]) if m else 0
-            for i in range(N_WINDOWS):
-                row_ids_all.append(f"{stem}_{(i + 1) * WIN_SEC}")
-                all_hours.append(hour)
+    out_df = pd.DataFrame(final, columns=class_cols)
+    out_df.insert(0, "row_id", row_ids_all)
 
-            # Within-file smoothing on Bruce
-            bp_sm = smooth_within_file(bruce_probs[s])
-            all_bruce.append(bp_sm)
-            all_perch.append(perch_probs[s])
-            all_knn.append(knn_probs[s])
-            all_probe.append(probe_probs[s])
-            all_bal_lr.append(bal_lr_probs[s])
-            all_hour_lr.append(hour_lr_probs[s])
-            all_mlp.append(mlp_probs[s])
-            all_proto.append(proto_sim[s])
-            all_extrag.append(ext_rag[s])
-
-        done = start + bn
-        if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
-            el = time.time() - t0
-            rate = done / max(el, 1.0)
-            eta = (len(test_files) - done) / max(rate, 0.01)
-            print(f"  [{done}/{len(test_files)}] elapsed={el:.0f}s "
-                  f"rate={rate:.2f} files/s eta={eta:.0f}s")
-
-P_bruce_all = np.concatenate(all_bruce, axis=0)
-P_perch_all = np.concatenate(all_perch, axis=0)
-P_knn_all = np.concatenate(all_knn, axis=0)
-P_probe_all = np.concatenate(all_probe, axis=0)
-P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
-P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
-P_mlp_all = np.concatenate(all_mlp, axis=0)
-P_proto_all = np.concatenate(all_proto, axis=0) if proto_bundle is not None else None
-P_extrag_all = np.concatenate(all_extrag, axis=0) if ext_rag_bundle is not None else None
-hours = np.array(all_hours, dtype=np.int32)
-print(f"\nInference done in {time.time()-t0:.0f}s. "
-      f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
-
-# ============================================================================
-# Cross-file rank-normalize + weighted blend + prior
-# ============================================================================
-print("Computing cross-file rank-norm...")
-R_bruce = rank_norm(P_bruce_all)
-R_perch = rank_norm(P_perch_all)
-R_knn = rank_norm(P_knn_all) if HAS_KNN else None
-R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
-R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
-R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
-R_mlp = rank_norm(P_mlp_all) if HAS_MLP else None
-R_proto = rank_norm(P_proto_all) if proto_bundle is not None else None
-R_extrag = rank_norm(P_extrag_all) if ext_rag_bundle is not None else None
-
-# Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
-if HAS_KNN and HAS_PROBE:
-    R_base = 0.30*R_bruce + 0.40*R_knn + 0.20*R_probe + 0.10*R_perch
-    print("Base blend: 0.30 Bruce_sm + 0.40 KNN + 0.20 Probe + 0.10 Perch")
-elif HAS_KNN:
-    R_base = 0.50*R_bruce + 0.40*R_knn + 0.10*R_perch
-    print("Fallback base (no Probe): 0.50 Bruce_sm + 0.40 KNN + 0.10 Perch")
-elif HAS_PROBE:
-    R_base = 0.50*R_bruce + 0.30*R_probe + 0.20*R_perch
-    print("Fallback base (no KNN): 0.50 Bruce_sm + 0.30 Probe + 0.20 Perch")
-else:
-    R_base = 0.70*R_bruce + 0.30*R_perch
-    print("Minimum base (Bruce + Perch only)")
-
-# Step 2: blend balanced LR (alone or ensembled with hour-conditional LR) on top
-# OOF measurements:
-#   R_base + 0.55 * R_bal_lr                        = 0.9647 (+0.0067)
-#   R_base + 0.55 * (R_bal_lr + R_hour_lr)/2        = 0.9663 (+0.0083) ⭐
-if HAS_BAL_LR and HAS_HOUR_LR:
-    ALPHA_LR = 0.55
-    R_lr_combined = 0.5 * R_bal_lr + 0.5 * R_hour_lr
-    R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_lr_combined
-    print(f"Added balanced+hour LR ensemble @ alpha={ALPHA_LR} (lifts OOF +0.0083 -> 0.9663)")
-elif HAS_BAL_LR:
-    ALPHA_LR = bal_lr.get("alpha", 0.55)
-    R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
-    print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF +0.0067)")
-else:
-    R_blend_v1 = R_base
-    print("No balanced LR available")
-
-# Step 2.5: blend LightGBM meta-stacker on top (final +0.0012 OOF)
-if HAS_LGB and HAS_BAL_LR and HAS_HOUR_LR:
-    n_rows = R_bruce.shape[0]
-    P_lgb_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
-    for ci, m in enumerate(lgb_meta["lgb_models"]):
-        if m is None: continue
-        # 6 features in this exact order: Bruce, KNN, Probe, Perch, BalLR, HourLR
-        X = np.column_stack([R_bruce[:, ci],
-                             R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
-                             R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
-                             R_perch[:, ci], R_bal_lr[:, ci], R_hour_lr[:, ci]])
-        try:
-            P_lgb_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
-        except Exception:
-            pass
-    R_lgb = rank_norm(P_lgb_all)
-    W_LGB = lgb_meta.get("blend_w_lgb", 0.10)
-    R_blend_v1 = (1 - W_LGB) * R_blend_v1 + W_LGB * R_lgb
-    print(f"Added LGB stacker @ w={W_LGB} (lifts OOF +0.0008 -> 0.9671)")
-
-# Step 2.7: blend MLP 5-seed ensemble on top (+0.0033 OOF — biggest stacker win)
-if HAS_MLP and R_mlp is not None:
-    ALPHA_MLP = mlp_bundle.get("blend_alpha", 0.35)
-    R_blend_v1 = (1 - ALPHA_MLP) * R_blend_v1 + ALPHA_MLP * R_mlp
-    print(f"Added 5-seed MLP @ alpha={ALPHA_MLP} (lifts OOF +0.0033 -> 0.9708)")
-
-# Step 2.8: blend pure-call prototype similarity (+0.0023 OOF — global alpha)
-# Per-class Perch-embedding prototype from KNN-DB single-label rows.
-# Adds within-chorus disambiguation signal that complements all other models.
-if proto_bundle is not None and R_proto is not None:
-    ALPHA_PROTO = proto_bundle.get("blend_alpha", 0.10)
-    R_blend_v1 = (1 - ALPHA_PROTO) * R_blend_v1 + ALPHA_PROTO * R_proto
-    print(f"Added prototype-sim @ alpha={ALPHA_PROTO} (honest, clean DB)")
-
-# Step 2.9: External RAG (multi-K AnuraSet + Amazon Basin + Coffee Farms retrieval)
-# Targeted on 42 strong-coverage classes. Honest +0.0011 → 0.9717 OOF.
-if ext_rag_bundle is not None and R_extrag is not None:
-    ALPHA_EXT = ext_rag_bundle.get("blend_alpha", 0.40)
-    strong_mask_arr = ext_rag_bundle["strong_mask"]
-    # Apply only on strong-coverage classes
-    R_blend_v1[:, strong_mask_arr] = (
-        (1 - ALPHA_EXT) * R_blend_v1[:, strong_mask_arr]
-        + ALPHA_EXT * R_extrag[:, strong_mask_arr]
-    )
-    print(f"Added external-RAG on {strong_mask_arr.sum()} strong classes @ alpha={ALPHA_EXT} (lifts OOF +0.0011 → 0.9717)")
-
-# Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
-if HAS_META:
-    # Build per-class meta predictions
-    n_rows = R_bruce.shape[0]
-    P_meta_all = np.full((n_rows, 234), 0.5, dtype=np.float32)
-    for ci, m in enumerate(meta_stacker["meta_models"]):
-        if m is None: continue
-        # Stack 5 features for this class across all rows
-        if HAS_BAL_LR:
-            X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
-                                 R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
-                                 R_perch[:, ci], R_bal_lr[:, ci]])
-        else:
-            # Mirror with zeros for missing models so the LR sees the same feature shape
-            X = np.column_stack([R_bruce[:, ci], R_knn[:, ci] if HAS_KNN else np.full(n_rows, 0.5),
-                                 R_probe[:, ci] if HAS_PROBE else np.full(n_rows, 0.5),
-                                 R_perch[:, ci], np.full(n_rows, 0.5)])
-        try:
-            P_meta_all[:, ci] = m.predict_proba(X)[:, 1].astype(np.float32)
-        except Exception:
-            pass
-    R_meta = rank_norm(P_meta_all)
-    ALPHA_META = meta_stacker["blend_alpha"]
-    blend = (1 - ALPHA_META) * R_blend_v1 + ALPHA_META * R_meta
-    print(f"Added meta-stacker @ alpha={ALPHA_META} (lifts OOF by +0.0007 -> 0.9654)")
-else:
-    blend = R_blend_v1
-    print("No meta-stacker available (would have added +0.0007 OOF)")
-
-# Apply combined hour prior
-W_PRIOR = 2.0 if HAS_MLP else 2.5  # MLP recipe plateau peaks at w=2.0; old recipe at 2.5
-logit_p = np.log(np.clip(blend, EPS, 1-EPS) / np.clip(1-blend, EPS, 1))
-valid = (hours >= 0) & (hours < 24)
-shift = np.zeros_like(blend, dtype=np.float64)
-shift[valid] = W_PRIOR * log_hp[hours[valid]]
-final = 1.0 / (1.0 + np.exp(-(logit_p + shift)))
-final = np.clip(final, 0.0, 1.0).astype(np.float32)
-
-out_df = pd.DataFrame(final, columns=class_cols)
-out_df.insert(0, "row_id", row_ids_all)
-
-sample_ids = samp["row_id"].astype(str).tolist()
-if set(out_df["row_id"]) == set(sample_ids):
-    out_df = out_df.set_index("row_id").loc[sample_ids].reset_index()
-out_df.to_csv("subv8_submission.csv", index=False)
-print(f"\nWrote submission.csv: {len(out_df)} rows × {out_df.shape[1]} cols, "
-      f"min={final.min():.4f}, max={final.max():.4f}")
-print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
-      f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
-      f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + "
-      f"HourLR={'YES' if HAS_HOUR_LR else 'NO'} + "
-      f"LGB={'YES' if HAS_LGB else 'NO'} + "
-      f"MetaStacker={'YES' if HAS_META else 'NO'} + combined_prior(w={W_PRIOR})")
-expected_oof = "0.9580"
-if HAS_BAL_LR: expected_oof = "0.9647"
-if HAS_BAL_LR and HAS_HOUR_LR: expected_oof = "0.9663"
-if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB: expected_oof = "0.9671"
-if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB and HAS_META: expected_oof = "0.9675"
-if HAS_BAL_LR and HAS_HOUR_LR and HAS_MLP: expected_oof = "0.9708"
-print(f"Expected OOF: {expected_oof}")
+    sample_ids = samp["row_id"].astype(str).tolist()
+    if set(out_df["row_id"]) == set(sample_ids):
+        out_df = out_df.set_index("row_id").loc[sample_ids].reset_index()
+    out_df.to_csv("subv8_submission.csv", index=False)
+    print(f"\nWrote submission.csv: {len(out_df)} rows × {out_df.shape[1]} cols, "
+          f"min={final.min():.4f}, max={final.max():.4f}")
+    print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
+          f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
+          f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + "
+          f"HourLR={'YES' if HAS_HOUR_LR else 'NO'} + "
+          f"LGB={'YES' if HAS_LGB else 'NO'} + "
+          f"MetaStacker={'YES' if HAS_META else 'NO'} + combined_prior(w={W_PRIOR})")
+    expected_oof = "0.9580"
+    if HAS_BAL_LR: expected_oof = "0.9647"
+    if HAS_BAL_LR and HAS_HOUR_LR: expected_oof = "0.9663"
+    if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB: expected_oof = "0.9671"
+    if HAS_BAL_LR and HAS_HOUR_LR and HAS_LGB and HAS_META: expected_oof = "0.9675"
+    if HAS_BAL_LR and HAS_HOUR_LR and HAS_MLP: expected_oof = "0.9708"
+    print(f"Expected OOF: {expected_oof}")
 
 
 # ---------- BLEND ----------
