@@ -65,7 +65,7 @@ except Exception as e:
     print(f"  load error: {e}")
     raise
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"  # CUDA arch mismatch on Kaggle
 print(f"Using device: {device}")
 model = model.to(device).eval()
 
