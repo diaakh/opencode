@@ -7,7 +7,7 @@ TFNEW = "/tmp/tfnew"
 print(f"Installing TF 2.20+ to {TFNEW}...")
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
     "--target", TFNEW,
-    "tensorflow-cpu>=2.20", "keras>=3.5"])
+    "tensorflow-cpu>=2.20", "keras>=3.5", "protobuf>=6.0", "absl-py>=2.0", "ml-dtypes", "numpy", "wrapt", "gast", "termcolor", "h5py", "opt-einsum", "flatbuffers", "google-pasta", "libclang", "tensorboard", "namex", "optree", "rich"])
 print("Install done")
 
 # Spawn subprocess with PYTHONPATH pointing to new TF
