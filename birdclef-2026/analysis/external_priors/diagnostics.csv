@@ -1,0 +1,235 @@
+primary_label,inat_taxon_id,class_name,common_name,n_global_total,n_global_pulled,global_status,n_pantanal_total,n_pantanal_pulled,pantanal_status,elapsed_s
+1161364,1161364,Insecta,Guyalna cuta,58.0,57,ok,0.0,0,ok,1.2
+116570,116570,Reptilia,Southern Spectacled Caiman,5197.0,600,ok,1847.0,400,ok,8.8
+1176823,1176823,Amphibia,Wrestler Frog,2149.0,600,ok,3.0,3,ok,5.3
+1491113,1491113,Amphibia,Guaraní leaf-litter frog,1.0,1,ok,0.0,0,ok,0.2
+1595929,1595929,Amphibia,Uruguay Harlequin Frog,188.0,188,ok,17.0,17,ok,2.0
+209233,209233,Mammalia,Feral Horse,43748.0,600,ok,22.0,22,ok,4.6
+22930,22930,Amphibia,Basin White-lipped Frog,88.0,88,ok,6.0,6,ok,0.8
+22956,22956,Amphibia,Mustached Frog,688.0,600,ok,4.0,4,ok,6.0
+22961,22961,Amphibia,Pointedbelly Frog,287.0,284,ok,25.0,25,ok,2.6
+22967,22967,Amphibia,Marbled White-lipped Frog,115.0,114,ok,6.0,6,ok,0.8
+22973,22973,Amphibia,Whistling Grass Frog,1743.0,600,ok,18.0,18,ok,5.1
+22983,22983,Amphibia,Pepper Frog,530.0,520,ok,8.0,8,ok,4.7
+22985,22985,Amphibia,Peter's Jungle Frog,553.0,550,ok,0.0,0,ok,3.9
+23150,23150,Amphibia,Central Dwarf Frog,72.0,72,ok,3.0,3,ok,0.6
+23154,23154,Amphibia,Bahia Dwarf Frog,86.0,84,ok,0.0,0,ok,0.7
+23158,23158,Amphibia,Pale-legged Weeping Frog,278.0,277,ok,32.0,32,ok,2.5
+23176,23176,Amphibia,Cope's Swamp Froglet,95.0,92,ok,0.0,0,ok,0.8
+23724,23724,Amphibia,Waxy Monkey Tree Frog,148.0,143,ok,8.0,8,ok,1.1
+24279,24279,Amphibia,Lesser Snouted Tree Frog,1082.0,600,ok,89.0,89,ok,5.2
+24285,24285,Amphibia,Snouted Tree Frog,2851.0,600,ok,61.0,61,ok,5.2
+24287,24287,Amphibia,Brown-bordered Snouted Tree Frog,156.0,153,ok,3.0,3,ok,1.0
+24321,24321,Amphibia,Mato Grosso Snouted Tree Frog,482.0,481,ok,152.0,151,ok,4.8
+244024,244024,Insecta,Giant Cicada,5789.0,600,ok,9.0,9,ok,4.9
+25073,25073,Amphibia,Chiasmocleis mehelyi,4.0,4,ok,1.0,1,ok,0.2
+25092,25092,Amphibia,Two-colored oval frog,524.0,521,ok,46.0,46,ok,5.0
+25214,25214,Amphibia,Muller's Termite Frog,496.0,490,ok,27.0,27,ok,5.1
+326272,326272,Amphibia,Weeping Frog,562.0,556,ok,25.0,25,ok,4.8
+41970,41970,Mammalia,Jaguar,7851.0,600,ok,1529.0,400,ok,11.1
+43435,43435,Mammalia,Black Howling Monkey,2626.0,600,ok,528.0,400,ok,9.9
+47144,47144,Mammalia,Domestic Dog,146326.0,600,ok,10.0,10,ok,4.3
+47158son01,47158,Insecta,Insect sonotype01,85413206.0,600,ok,9691.0,400,ok,8.4
+47158son02,47158,Insecta,Insect sonotype02,85413206.0,600,ok,9691.0,400,ok,3.7
+47158son03,47158,Insecta,Insect sonotype03,85413206.0,600,ok,9691.0,400,ok,3.6
+47158son04,47158,Insecta,Insect sonotype04,85413206.0,600,ok,9691.0,400,ok,3.6
+47158son05,47158,Insecta,Insect sonotype05,85413206.0,600,ok,9691.0,400,ok,3.6
+47158son06,47158,Insecta,Insect sonotype06,85413206.0,600,ok,9691.0,400,ok,3.6
+47158son07,47158,Insecta,Insect sonotype07,85413206.0,600,ok,,0,http_429,2.1
+47158son08,47158,Insecta,Insect sonotype08,,0,http_429,,0,http_429,0.1
+47158son09,47158,Insecta,Insect sonotype09,,0,http_429,,0,http_429,0.1
+47158son10,47158,Insecta,Insect sonotype10,85413206.0,200,http_429,,0,http_429,0.8
+47158son11,47158,Insecta,Insect sonotype11,,0,http_429,,0,http_429,0.1
+47158son12,47158,Insecta,Insect sonotype12,,0,http_429,,0,http_429,0.1
+47158son13,47158,Insecta,Insect sonotype13,85413206.0,200,http_429,,0,http_429,0.8
+47158son14,47158,Insecta,Insect sonotype14,,0,http_429,,0,http_429,0.1
+47158son15,47158,Insecta,Insect sonotype15,,0,http_429,,0,http_429,0.1
+47158son16,47158,Insecta,Insect sonotype16,85413206.0,200,http_429,,0,http_429,0.8
+47158son17,47158,Insecta,Insect sonotype17,,0,http_429,,0,http_429,0.1
+47158son18,47158,Insecta,Insect sonotype18,,0,http_429,,0,http_429,0.1
+47158son19,47158,Insecta,Insect sonotype19,85413206.0,200,http_429,,0,http_429,0.8
+47158son20,47158,Insecta,Insect sonotype20,,0,http_429,,0,http_429,0.1
+47158son21,47158,Insecta,Insect sonotype21,,0,http_429,9691.0,200,http_429,0.9
+47158son22,47158,Insecta,Insect sonotype22,,0,http_429,,0,http_429,0.1
+47158son23,47158,Insecta,Insect sonotype23,,0,http_429,,0,http_429,0.1
+47158son24,47158,Insecta,Insect sonotype24,85413206.0,200,http_429,,0,http_429,0.8
+47158son25,47158,Insecta,Insect sonotype25,,0,http_429,,0,http_429,0.1
+476521,476521,Amphibia,Cuyaba Dwarf Frog,,0,http_429,,0,http_429,0.1
+516975,516975,Mammalia,Hooded Capuchin,1152.0,600,ok,630.0,400,ok,8.9
+517063,517063,Amphibia,Southern Orange-legged Leaf Frog,217.0,214,ok,25.0,25,ok,1.7
+555123,555123,Amphibia,Usina Tree Frog,,0,http_429,,0,http_429,0.1
+555145,555145,Amphibia,Polka-dot Tree Frog,,0,http_429,,0,http_429,0.1
+555146,555146,Amphibia,Chaco Tree Frog,,0,http_429,,0,http_429,0.1
+64898,64898,Amphibia,Yungas de la Paz Poison Frog,,0,http_429,,0,http_429,0.1
+65377,65377,Amphibia,Lesser Tree Frog,,0,http_429,,0,http_429,0.1
+65380,65380,Amphibia,Dwarf Tree Frog,,0,http_429,,0,http_429,0.1
+66971,66971,Amphibia,Paraguayan Swimming Frog,,0,http_429,,0,http_429,0.1
+67107,67107,Amphibia,Rococo Toad,6752.0,600,ok,176.0,173,ok,5.7
+67252,67252,Amphibia,Milk Frog,420.0,410,ok,5.0,5,ok,4.0
+70711,70711,Amphibia,Cei's White-lipped Frog,,0,http_429,,0,http_429,0.1
+738183,738183,Mammalia,White-coated Titi,,0,http_429,,0,http_429,0.1
+74113,74113,Mammalia,Highland,,0,http_429,,0,http_429,0.1
+74580,74580,Mammalia,Black-tailed Marmoset,,0,http_429,,0,http_429,0.1
+760266,760266,Insecta,Prionacris erosa,,0,http_429,,0,http_429,0.1
+ashgre1,17431,Aves,Ashy-headed Greenlet,,0,http_429,,0,http_429,0.1
+astcra1,508907,Aves,Ash-throated Crake,,0,http_429,,0,http_429,0.1
+bafcur1,2046,Aves,Bare-faced Curassow,,0,http_429,620.0,400,ok,3.7
+baffal1,4699,Aves,Barred Forest-Falcon,428.0,425,ok,0.0,0,ok,4.0
+banana,10199,Aves,Bananaquit,,0,http_429,,0,http_429,0.1
+barant1,15764,Aves,Barred Antshrike,,0,http_429,,0,http_429,0.1
+batbel1,8854,Aves,Bare-throated Bellbird,,0,http_429,,0,http_429,0.1
+baymac,19018,Aves,Blue-and-yellow Macaw,,0,http_429,,0,http_429,0.1
+bbwduc,6893,Aves,Black-bellied Whistling Duck,,0,http_429,,0,http_429,0.1
+bcwfin2,558564,Aves,Black-capped Warbling Finch,,0,http_429,,0,http_429,0.1
+bkcdon,116877,Aves,Black-capped Donacobius,,0,http_429,,0,http_429,0.1
+bkhpar,367562,Aves,Nanday Parakeet,,0,http_429,394.0,394,ok,2.8
+blchaw1,5346,Aves,Black-collared Hawk,4280.0,600,ok,825.0,400,ok,8.5
+blheag1,5291,Aves,Black Hawk-Eagle,1604.0,600,ok,5.0,5,ok,6.0
+blttit1,8830,Aves,Black-tailed Tityra,1108.0,600,ok,38.0,38,ok,5.5
+bncfly,16016,Aves,Brown-crested Flycatcher,,0,http_429,,0,http_429,0.1
+bobfly1,16737,Aves,Boat-billed Flycatcher,,0,http_429,,0,http_429,0.1
+brcmar1,11870,Aves,Brown-chested Martin,,0,http_429,,0,http_429,0.1
+brnowl,1578502,Aves,American Barn Owl,,0,http_429,,0,http_429,0.1
+bucmot4,204447,Aves,Amazonian Motmot,,0,http_429,,0,http_429,0.1
+bucpar,367564,Aves,Blue-crowned Parakeet,3185.0,600,ok,97.0,97,ok,5.8
+bufpar,18978,Aves,Turquoise-fronted Amazon,,0,http_429,,0,http_429,0.1
+bunibi1,3766,Aves,Buff-necked Ibis,,0,http_429,,0,http_429,0.1
+burowl,19975,Aves,Burrowing Owl,,0,http_429,,0,http_429,0.1
+camfli1,18262,Aves,Campo Flicker,7812.0,600,ok,206.0,206,ok,7.3
+chacha1,2088,Aves,Chaco Chachalaca,1603.0,600,ok,702.0,400,ok,7.4
+chbmoc1,14878,Aves,Chalk-browed Mockingbird,19242.0,600,ok,148.0,148,ok,5.4
+chobla1,10723,Aves,Chopi Blackbird,,0,http_429,145.0,145,ok,1.4
+chvcon1,10013,Aves,Chestnut-vented Conebill,1553.0,600,ok,27.0,27,ok,5.1
+cibspi1,10921,Aves,Cinereous-breasted Spinetail,,0,http_429,,0,http_429,0.1
+coffal1,4698,Aves,Collared Forest-Falcon,,0,http_429,,0,http_429,0.3
+compau,19627,Aves,Pauraque,,0,http_429,,0,http_429,0.1
+compot1,19667,Aves,Common Potoo,,0,http_429,,0,http_429,0.1
+crbthr1,12710,Aves,Creamy-bellied Thrush,,0,http_429,,0,http_429,0.1
+crebec1,8681,Aves,Crested Becard,1135.0,600,ok,2.0,2,ok,5.2
+dwatin1,20714,Aves,Dwarf Tinamou,,0,http_429,,0,http_429,0.1
+epaori4,72954,Aves,Variable Oriole,,0,http_429,,0,http_429,0.1
+eulfly1,17231,Aves,Euler's Flycatcher,,0,http_429,,0,http_429,0.1
+fabwre1,144880,Aves,Fawn-breasted Wren,,0,http_429,,0,http_429,0.1
+fepowl,19822,Aves,Ferruginous Pygmy Owl,,0,http_429,,0,http_429,0.1
+ficman1,14344,Aves,Fiery-capped Manakin,,0,http_429,,0,http_429,0.1
+flawar1,201223,Aves,Flavescent Warbler,,0,http_429,,0,http_429,0.1
+fotfly,16793,Aves,Fork-tailed Flycatcher,13143.0,600,ok,55.0,55,ok,5.3
+fusfly1,17076,Aves,Fuscous Flycatcher,,0,http_429,,0,http_429,0.1
+gilhum1,5979,Aves,Gilded Hummingbird,,0,http_429,,0,http_429,0.1
+giwrai1,460,Aves,Giant Wood Rail,,0,http_429,,0,http_429,0.1
+glteme1,1289639,Aves,Glittering-throated Emerald,,0,http_429,,0,http_429,0.1
+grasal3,9850,Aves,Bluish-grey Saltator,,0,http_429,,0,http_429,0.1
+greani1,1970,Aves,Greater Ani,3760.0,600,ok,85.0,85,ok,5.1
+greant1,15957,Aves,Great Antshrike,,0,http_429,,0,http_429,0.1
+greela,16892,Aves,Greenish Elaenia,,0,http_429,,0,http_429,0.1
+grekis,16956,Aves,Great Kiskadee,,0,http_429,,0,http_429,0.1
+grepot1,19680,Aves,Great Potoo,,0,http_429,,0,http_429,0.1
+gretho2,11632,Aves,Greater Thornbird,1115.0,600,ok,86.0,86,ok,5.7
+greyel,3892,Aves,Greater Yellowlegs,,0,http_429,,0,http_429,0.1
+grfdov1,3302,Aves,Grey-fronted Dove,,0,http_429,,0,http_429,0.1
+grhtan1,10698,Aves,Grey-headed Tanager,,0,http_429,,0,http_429,0.1
+gycwor1,513889,Aves,Grey-cowled Wood Rail,,0,http_429,,0,http_429,0.1
+horscr1,6908,Aves,Horned Screamer,,0,http_429,,0,http_429,0.1
+houspa,13858,Aves,House Sparrow,525728.0,600,ok,29.0,29,ok,4.7
+hyamac1,18938,Aves,Hyacinth Macaw,,0,http_429,,0,http_429,0.1
+larela1,16734,Aves,Large Elaenia,,0,http_429,,0,http_429,0.1
+lesela1,578460,Aves,Lesser Elaenia,,0,http_429,,0,http_429,0.1
+lesgrf1,10555,Aves,Lesser Grass-Finch,,0,http_429,,0,http_429,0.1
+limpki,7,Aves,Limpkin,,0,http_429,,0,http_429,0.1
+linwoo1,17858,Aves,Lineated Woodpecker,,0,http_429,,0,http_429,0.1
+litcuc2,72740,Aves,Little Cuckoo,,0,http_429,,0,http_429,0.1
+litnig1,367507,Aves,Little Nightjar,,0,http_429,,0,http_429,0.1
+mabpar,19162,Aves,Maroon-bellied Parakeet,,0,http_429,,0,http_429,0.1
+magant1,15737,Aves,Mato Grosso Antbird,,0,http_429,84.0,84,ok,0.6
+magtan2,72727,Aves,Magpie Tanager,,0,http_429,,0,http_429,0.2
+masgna1,7509,Aves,Masked Gnatcatcher,,0,http_429,,0,http_429,0.1
+nacnig1,19661,Aves,Nacunda Nighthawk,,0,http_429,,0,http_429,0.1
+ocecra1,1506288,Aves,Ocellated Crake,,0,http_429,,0,http_429,0.1
+oliwoo1,11511,Aves,Olivaceous Woodcreeper,,0,http_429,,0,http_429,0.2
+orbtro3,62564,Aves,Orange-backed Troupial,982.0,600,ok,282.0,280,ok,7.3
+orwpar,18982,Aves,Orange-winged Amazon,,0,http_429,,0,http_429,0.1
+osprey,116999,Aves,Osprey,,0,http_429,,0,http_429,0.1
+pabspi1,10999,Aves,Pale-breasted Spinetail,,0,http_429,,0,http_429,0.1
+palhor3,11281,Aves,Pale-legged Hornero,,0,http_429,,0,http_429,0.1
+paltan1,10297,Aves,Palm Tanager,,0,http_429,,0,http_429,0.1
+phecuc1,1982,Aves,Pheasant Cuckoo,,0,http_429,,0,http_429,0.1
+picpig2,3102,Aves,Picazuro Pigeon,,0,http_429,,0,http_429,0.1
+pirfly1,17312,Aves,Piratic Flycatcher,,0,http_429,14.0,14,ok,0.2
+plasla1,73493,Aves,Planalto Slaty Antshrike,,0,http_429,,0,http_429,0.1
+platyr1,16344,Aves,Plain Inezia,,0,http_429,,0,http_429,0.1
+plcjay1,8484,Aves,Plush-crested Jay,,0,http_429,,0,http_429,0.1
+pluibi1,3768,Aves,Plumbeous Ibis,,0,http_429,,0,http_429,0.1
+purjay1,8483,Aves,Purplish Jay,,0,http_429,,0,http_429,0.1
+pvttyr1,16273,Aves,Pearly-vented Tody-Tyrant,,0,http_429,,0,http_429,0.1
+ragmac1,19016,Aves,Red-and-green Macaw,,0,http_429,,0,http_429,0.1
+rebscy1,11201,Aves,Red-billed Scythebill,,0,http_429,,0,http_429,0.1
+recfin1,10310,Aves,Red-crested Finch,,0,http_429,62.0,62,ok,0.5
+redjun,882,Aves,Red Junglefowl,,0,http_429,,0,http_429,0.1
+relser1,14,Aves,Red-legged Seriema,,0,http_429,,0,http_429,0.1
+rinkin1,2552,Aves,Ringed Kingfisher,,0,http_429,,0,http_429,0.1
+rivwar1,145267,Aves,Riverbank Warbler,,0,http_429,,0,http_429,0.1
+roahaw,201041,Aves,Roadside Hawk,,0,http_429,,0,http_429,0.1
+rubthr1,12738,Aves,Rufous-bellied Thrush,,0,http_429,,0,http_429,0.1
+rufcac2,11718,Aves,Rufous Cacholote,,0,http_429,,0,http_429,0.1
+rufcas2,17102,Aves,Rufous Casiornis,431.0,431,ok,,0,http_429,3.4
+rufgna3,578313,Aves,Rufous Gnateater,,0,http_429,,0,http_429,0.1
+rufhor2,11275,Aves,Rufous Hornero,,0,http_429,,0,http_429,0.1
+rufnig1,201066,Aves,Rufous Nightjar,,0,http_429,,0,http_429,0.1
+ruftho1,11624,Aves,Rufous-fronted Thornbird,,0,http_429,,0,http_429,0.1
+ruftof1,17026,Aves,Rusty-fronted Tody-Flycatcher,,0,http_429,,0,http_429,0.1
+rumfly1,16833,Aves,Rusty-margined Flycatcher,,0,http_429,,0,http_429,0.1
+ruther1,5048,Aves,Rufescent Tiger Heron,,0,http_429,,0,http_429,0.1
+rutjac1,1468,Aves,Rufous-tailed Jacamar,,0,http_429,,0,http_429,0.1
+sabspa1,10064,Aves,Saffron-billed Sparrow,,0,http_429,,0,http_429,0.1
+saffin,9864,Aves,Saffron Finch,,0,http_429,,0,http_429,0.2
+saytan1,10293,Aves,Sayaca Tanager,11424.0,600,ok,117.0,117,ok,5.5
+scadov1,3564,Aves,Scaled Dove,,0,http_429,,0,http_429,0.1
+schpar1,19094,Aves,Scaly-headed Parrot,,0,http_429,,0,http_429,0.1
+scther1,5622,Aves,Scale-throated Hermit,,0,http_429,,0,http_429,0.1
+shcfly1,16006,Aves,Short-crested Flycatcher,,0,http_429,,0,http_429,0.1
+shshaw,5097,Aves,Sharp-shinned Hawk,,0,http_429,,0,http_429,0.1
+shtnig1,19645,Aves,Short-tailed Nighthawk,,0,http_429,,0,http_429,0.1
+sibtan2,10056,Aves,Silver-beaked Tanager,,0,http_429,238.0,238,ok,1.9
+smbani,1971,Aves,Smooth-billed Ani,,0,http_429,,0,http_429,0.1
+smbtin1,20570,Aves,Small-billed Tinamou,,0,http_429,,0,http_429,0.1
+sobcac1,10365,Aves,Solitary Cacique,,0,http_429,,0,http_429,0.3
+sobtyr1,16972,Aves,Southern Beardless Tyrannulet,,0,http_429,,0,http_429,0.1
+socfly1,16842,Aves,Social Flycatcher,,0,http_429,,0,http_429,0.1
+sofspi1,10996,Aves,Sooty-fronted Spinetail,,0,http_429,,0,http_429,0.1
+souant1,17264,Aves,Southern Antpipit,,0,http_429,,0,http_429,0.1
+soulap1,4867,Aves,Southern Lapwing,,0,http_429,,0,http_429,0.1
+souscr1,6910,Aves,Southern Screamer,,0,http_429,,0,http_429,0.1
+spbant3,15959,Aves,Spot-backed Antshrike,437.0,436,ok,,0,http_429,3.5
+spispi1,10915,Aves,Spix's Spinetail,,0,http_429,,0,http_429,0.1
+sptnig1,1584760,Aves,Spot-tailed Nightjar,,0,http_429,,0,http_429,0.1
+squcuc1,1758,Aves,Common Squirrel-Cuckoo,,0,http_429,,0,http_429,0.1
+stbwoo2,72806,Aves,Straight-billed Woodcreeper,,0,http_429,,0,http_429,0.1
+strcuc1,1989,Aves,Striped Cuckoo,,0,http_429,,0,http_429,0.1
+strher2,62528,Aves,Striated Heron,,0,http_429,468.0,400,ok,3.1
+strowl1,558468,Aves,Striped Owl,2458.0,600,ok,32.0,31,ok,6.3
+swthum1,6065,Aves,Swallow-tailed Hummingbird,5263.0,600,ok,26.0,25,ok,5.6
+swtman1,14306,Aves,Swallow-tailed Manakin,2194.0,600,ok,0.0,0,ok,4.9
+tattin1,20587,Aves,Tataupa Tinamou,,0,http_429,,0,http_429,0.1
+thlwre1,7480,Aves,Thrush-like Wren,,0,http_429,,0,http_429,0.1
+toctou1,18793,Aves,Toco Toucan,,0,http_429,,0,http_429,0.1
+trokin,16787,Aves,Tropical Kingbird,,0,http_429,,0,http_429,0.1
+trsowl,19788,Aves,Tropical Screech Owl,,0,http_429,,0,http_429,0.2
+undtin1,20592,Aves,Undulated Tinamou,,0,http_429,,0,http_429,0.1
+varant1,15757,Aves,Variable Antshrike,,0,http_429,,0,http_429,0.1
+watjac1,4580,Aves,Wattled Jacana,,0,http_429,,0,http_429,0.1
+wesfie1,1286886,Aves,Western Fire-eye,,0,http_429,,0,http_429,0.1
+wfwduc1,6898,Aves,White-faced Whistling Duck,,0,http_429,,0,http_429,0.1
+whbant2,15902,Aves,White-bearded Antshrike,,0,http_429,,0,http_429,0.1
+whbwar2,201224,Aves,White-browed Warbler,,0,http_429,0.0,0,ok,0.2
+whiwoo1,18183,Aves,White Woodpecker,,0,http_429,,0,http_429,0.1
+whlspi1,10992,Aves,White-lored Spinetail,,0,http_429,,0,http_429,0.1
+whnjay1,8469,Aves,White-naped Jay,,0,http_429,,0,http_429,0.1
+whtdov,3280,Aves,White-tipped Dove,,0,http_429,,0,http_429,0.1
+whwpic1,17786,Aves,White-wedged Piculet,,0,http_429,,0,http_429,0.1
+y00678,4715,Aves,Crested Caracara,,0,http_429,,0,http_429,0.1
+yebcar,10257,Aves,Yellow-billed Cardinal,,0,http_429,,0,http_429,0.1
+yebela1,16714,Aves,Yellow-bellied Elaenia,,0,http_429,,0,http_429,0.1
+yecmac,73272,Aves,Golden-collared Macaw,,0,http_429,,0,http_429,0.1
+yecpar,19215,Aves,Yellow-chevroned Parakeet,,0,http_429,,0,http_429,0.1
+yehcar1,1432779,Aves,Yellow-headed Caracara,19937.0,600,ok,36.0,36,ok,4.8
+yeofly1,16567,Aves,Yellow-olive Flatbill,,0,http_429,,0,http_429,0.1
