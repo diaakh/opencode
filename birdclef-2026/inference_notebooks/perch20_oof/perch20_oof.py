@@ -1,41 +1,19 @@
-"""Perch 2.0 — direct pip --upgrade (no isolation, just override system packages)."""
-import os, sys, subprocess, glob
+"""Perch 2.0 — use Kaggle v168 docker image (has TF 2.20+)."""
+import os, sys, glob, re, time
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-# Force-upgrade core packages in main env (no isolation)
-print("Upgrading TF + protobuf + deps in main env...")
-subprocess.check_call([sys.executable, "-m", "pip", "install",
-    "--upgrade", "--force-reinstall", "--no-deps",
-    "tensorflow-cpu>=2.20",
-    "keras>=3.5",
-    "protobuf>=6.0",
-    "ml-dtypes",
-    "absl-py>=2.0",
-    "numpy>=2.0",
-])
-print("Install done")
-
-# Restart import fresh
-import importlib, site
-importlib.reload(site)
-
-# Now import TF
-import re, time
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import soundfile as sf
 import tensorflow as tf
-print(f"TF: {tf.__version__}")
+print(f"TF version: {tf.__version__}")
 
-# Locate Perch 2.0 CPU
 PERCH20_ROOT = None
 for cand in glob.glob("/kaggle/input/**/saved_model.pb", recursive=True):
     p = Path(cand).parent
     if "cpu" in str(p): PERCH20_ROOT = p; break
     if PERCH20_ROOT is None: PERCH20_ROOT = p
 print(f"Perch 2.0: {PERCH20_ROOT}")
-
 model = tf.saved_model.load(str(PERCH20_ROOT))
 sig = model.signatures["serving_default"]
 input_key = list(sig.structured_input_signature[1].keys())[0]
@@ -44,7 +22,6 @@ out = sig(**{input_key: test})
 print(f"Forward works! Outputs: {list(out.keys())}")
 for k, v in out.items(): print(f"  {k}: {v.shape}")
 
-# BC2026 setup
 COMP = Path("/kaggle/input/competitions/birdclef-2026")
 if not COMP.exists(): COMP = Path("/kaggle/input/birdclef-2026")
 labels = pd.read_csv(COMP / "train_soundscapes_labels.csv").drop_duplicates()
@@ -59,7 +36,6 @@ for i, row in labels.iterrows():
         c = c.strip()
         if c in cls_idx: Y[i, cls_idx[c]] = 1.0
 
-# Mapping
 perch_sci = perch_ebird = None
 for p in PERCH20_ROOT.rglob("labels.csv"): perch_sci = pd.read_csv(p); break
 for p in PERCH20_ROOT.rglob("perch_v2_ebird_classes.csv"): perch_ebird = pd.read_csv(p); break
