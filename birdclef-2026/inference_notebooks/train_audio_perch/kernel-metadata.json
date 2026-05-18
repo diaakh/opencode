@@ -1,0 +1,17 @@
+{
+  "id": "adkasd/bc26-train-audio-perch-prototypes",
+  "title": "bc26 train audio perch prototypes",
+  "code_file": "train_audio_perch.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "brucewu1200/birdclef-2026-cvlb-assets-0911",
+    "tuckerarrants/perch-v2-no-dft-onnx"
+  ]
+}
