@@ -70,10 +70,12 @@ KNN_HITS = list(Path("/kaggle/input").rglob("knn_index.pkl"))
 PROBE_HITS = list(Path("/kaggle/input").rglob("probe_ridge.pkl"))
 BAL_LR_HITS = list(Path("/kaggle/input").rglob("balanced_lr_bundle.pkl"))
 META_HITS = list(Path("/kaggle/input").rglob("meta_stacker_bundle.pkl"))
+HOUR_LR_HITS = list(Path("/kaggle/input").rglob("hour_lr_bundle.pkl"))
 HAS_KNN = bool(KNN_HITS)
 HAS_PROBE = bool(PROBE_HITS)
 HAS_BAL_LR = bool(BAL_LR_HITS)
 HAS_META = bool(META_HITS)
+HAS_HOUR_LR = bool(HOUR_LR_HITS)
 
 print(f"COMP_DIR:   {COMP_DIR}")
 print(f"BUNDLE:     {BUNDLE_PATH}")
@@ -83,6 +85,7 @@ print(f"KNN INDEX:  {KNN_HITS[0] if HAS_KNN else '<MISSING — falls back withou
 print(f"PROBE:      {PROBE_HITS[0] if HAS_PROBE else '<MISSING — falls back without Probe>'}")
 print(f"BAL_LR:     {BAL_LR_HITS[0] if HAS_BAL_LR else '<MISSING — falls back without balanced LR (+0.0067 OOF)>'}")
 print(f"META:       {META_HITS[0] if HAS_META else '<MISSING — falls back without meta-stacker (+0.0007 OOF)>'}")
+print(f"HOUR_LR:    {HOUR_LR_HITS[0] if HAS_HOUR_LR else '<MISSING — falls back without hour-conditional LR (+0.0016 OOF)>'}")
 
 # Install onnxruntime if missing
 try:
@@ -145,6 +148,22 @@ if HAS_META:
     n_trained = sum(1 for m in meta_stacker["meta_models"] if m is not None)
     print(f"Meta-stacker: {n_trained}/{len(meta_stacker['classes'])} per-class LR over "
           f"{len(meta_stacker['features'])} rank features, blend alpha={meta_stacker['blend_alpha']}")
+
+# Hour-conditional LR bundle (per-(hour_bucket, class) balanced LR)
+hour_lr = None
+if HAS_HOUR_LR:
+    with open(HOUR_LR_HITS[0], "rb") as f:
+        hour_lr = pickle.load(f)
+    n_trained = len(hour_lr["hr_models"])
+    print(f"Hour-LR: {n_trained} per-(bucket, class) models across "
+          f"{len(set(k[0] for k in hour_lr['hr_models']))} hour buckets")
+
+def hour_bucket(h):
+    if h <= 4: return 0
+    elif h <= 7: return 1
+    elif h <= 10: return 2
+    elif h <= 17: return 3
+    else: return 4
 
 # Combined hour prior
 hp_df = pd.read_csv(PRIOR_PATH).set_index("hour")
@@ -273,7 +292,7 @@ if not test_files:
 print(f"\nProcessing {len(test_files)} files (batch={BATCH_FILES})")
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 
-all_bruce, all_perch, all_knn, all_probe, all_bal_lr = [], [], [], [], []
+all_bruce, all_perch, all_knn, all_probe, all_bal_lr, all_hour_lr = [], [], [], [], [], []
 all_hours = []
 row_ids_all = []
 t0 = time.time()
@@ -287,6 +306,25 @@ def bal_lr_predict(emb_query):
     for ci, m in enumerate(bal_lr["lr_models"]):
         if m is None: continue
         out[:, ci] = m.predict_proba(emb_red)[:, 1].astype(np.float32)
+    return out
+
+def hour_lr_predict(emb_query, hours_query):
+    """Per-(hour_bucket, class) LogisticRegression. Returns (n, 234)."""
+    if hour_lr is None:
+        return np.zeros((emb_query.shape[0], 234), dtype=np.float32)
+    emb_red = hour_lr["svd"].transform(emb_query)
+    out = np.full((emb_query.shape[0], 234), 0.5, dtype=np.float32)
+    buckets = np.array([hour_bucket(h) for h in hours_query])
+    for hb in set(buckets.tolist()):
+        rows = np.where(buckets == hb)[0]
+        if len(rows) == 0: continue
+        for ci in range(234):
+            m = hour_lr["hr_models"].get((hb, ci))
+            if m is None: continue
+            try:
+                out[rows, ci] = m.predict_proba(emb_red[rows])[:, 1].astype(np.float32)
+            except Exception:
+                pass
     return out
 
 import concurrent.futures
@@ -317,6 +355,13 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         probe_probs = (1.0 / (1.0 + np.exp(-probe.predict(emb)))
                        if probe is not None else np.zeros_like(bruce_probs))
         bal_lr_probs = bal_lr_predict(emb)
+        # For hour-conditional LR we need the per-window hour
+        per_win_hours = []
+        for bi, (fpath, _) in enumerate(batch_results):
+            m = ROW_RE.search(fpath.stem)
+            h = int(m.group(2)[:2]) if m else 0
+            per_win_hours.extend([h] * N_WINDOWS)
+        hour_lr_probs = hour_lr_predict(emb, np.array(per_win_hours, dtype=np.int32))
 
         for bi, (fpath, _) in enumerate(batch_results):
             s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
@@ -334,6 +379,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
             all_knn.append(knn_probs[s])
             all_probe.append(probe_probs[s])
             all_bal_lr.append(bal_lr_probs[s])
+            all_hour_lr.append(hour_lr_probs[s])
 
         done = start + bn
         if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
@@ -348,6 +394,7 @@ P_perch_all = np.concatenate(all_perch, axis=0)
 P_knn_all = np.concatenate(all_knn, axis=0)
 P_probe_all = np.concatenate(all_probe, axis=0)
 P_bal_lr_all = np.concatenate(all_bal_lr, axis=0)
+P_hour_lr_all = np.concatenate(all_hour_lr, axis=0)
 hours = np.array(all_hours, dtype=np.int32)
 print(f"\nInference done in {time.time()-t0:.0f}s. "
       f"Bruce p1-p99: [{np.percentile(P_bruce_all,1):.3f}, {np.percentile(P_bruce_all,99):.3f}]")
@@ -361,6 +408,7 @@ R_perch = rank_norm(P_perch_all)
 R_knn = rank_norm(P_knn_all) if HAS_KNN else None
 R_probe = rank_norm(P_probe_all) if HAS_PROBE else None
 R_bal_lr = rank_norm(P_bal_lr_all) if HAS_BAL_LR else None
+R_hour_lr = rank_norm(P_hour_lr_all) if HAS_HOUR_LR else None
 
 # Step 1: build the 4-model base rank-blend (matches RECIPE_AT_0961 exactly)
 if HAS_KNN and HAS_PROBE:
@@ -376,14 +424,22 @@ else:
     R_base = 0.70*R_bruce + 0.30*R_perch
     print("Minimum base (Bruce + Perch only)")
 
-# Step 2: blend balanced LR on top (the +0.0067 OOF additive — small-class focus)
-if HAS_BAL_LR:
-    ALPHA_LR = bal_lr.get("alpha", 0.55)  # OOF-optimal alpha
+# Step 2: blend balanced LR (alone or ensembled with hour-conditional LR) on top
+# OOF measurements:
+#   R_base + 0.55 * R_bal_lr                        = 0.9647 (+0.0067)
+#   R_base + 0.55 * (R_bal_lr + R_hour_lr)/2        = 0.9663 (+0.0083) ⭐
+if HAS_BAL_LR and HAS_HOUR_LR:
+    ALPHA_LR = 0.55
+    R_lr_combined = 0.5 * R_bal_lr + 0.5 * R_hour_lr
+    R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_lr_combined
+    print(f"Added balanced+hour LR ensemble @ alpha={ALPHA_LR} (lifts OOF +0.0083 -> 0.9663)")
+elif HAS_BAL_LR:
+    ALPHA_LR = bal_lr.get("alpha", 0.55)
     R_blend_v1 = (1 - ALPHA_LR) * R_base + ALPHA_LR * R_bal_lr
-    print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF by +0.0067)")
+    print(f"Added balanced LR @ alpha={ALPHA_LR} (lifts OOF +0.0067)")
 else:
     R_blend_v1 = R_base
-    print("No balanced LR available (would have added +0.0067 OOF)")
+    print("No balanced LR available")
 
 # Step 3: blend meta-stacker on top (the +0.0007 OOF additive — per-class LR over rank features)
 if HAS_META:
@@ -435,8 +491,10 @@ print(f"\nWrote submission.csv: {len(out_df)} rows × {out_df.shape[1]} cols, "
 print(f"Recipe: Bruce_smoothed + KNN={'YES' if HAS_KNN else 'NO'} + "
       f"Probe={'YES' if HAS_PROBE else 'NO'} + Perch + "
       f"BalancedLR={'YES' if HAS_BAL_LR else 'NO'} + "
+      f"HourLR={'YES' if HAS_HOUR_LR else 'NO'} + "
       f"MetaStacker={'YES' if HAS_META else 'NO'} + combined_prior(w={W_PRIOR})")
 expected_oof = "0.9580"
 if HAS_BAL_LR: expected_oof = "0.9647"
-if HAS_BAL_LR and HAS_META: expected_oof = "0.9654"
+if HAS_BAL_LR and HAS_HOUR_LR: expected_oof = "0.9663"
+if HAS_BAL_LR and HAS_HOUR_LR and HAS_META: expected_oof = "0.9667 (approx)"
 print(f"Expected OOF: {expected_oof}")
