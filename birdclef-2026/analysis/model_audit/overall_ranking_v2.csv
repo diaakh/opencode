@@ -1,0 +1,13 @@
+model,macro_auc,n_classes,leaky
+exp019_Distilled_SED,0.9970671858527944,75,True
+exp019_Model_7_blend,0.9960914114631133,75,True
+exp019_ProtoSSM,0.9922447282828032,75,True
+perch_v2_raw,0.8858602923294445,46,False
+bruce_clip_ridge,0.8669738122261403,75,False
+alexander_b0,0.6344055979306558,75,False
+baiyuby_v2s_max_FLIPPED,0.6331738424378973,75,False
+long_convnextv2,0.6302988590599027,75,False
+mauricio_b0_scratch,0.623221918311088,75,False
+snowflake_efnetv2m,0.6009850269004654,75,False
+snowflake_convnext,0.598801555109674,75,False
+baiyuby_v2s_att,0.587798440737192,75,False
