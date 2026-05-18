@@ -1,45 +1,68 @@
-# V6: Real Audio Augmentation Benchmark Results
+# V6: Real Audio Augmentation Benchmark — Final Results
 
 ## Method
-Ran `augmentation_benchmark.py` with:
 - Model: fold0.onnx (60s waveform → 12-window logits, 234 classes)
-- Data: 30 labeled train_soundscapes files (360 5-sec windows)
-- Ground truth: train_soundscapes_labels.csv multi-hot
-- Metric: macro-AUC across 46 classes with positives
+- Data: 30 labeled train_soundscapes files (360 5-sec windows, 46 classes with positives)
+- Ground truth: train_soundscapes_labels.csv
+- Metric: macro-AUC
+- Baseline: 0.9141
 
-## Individual augmentation results (partial — benchmark in progress)
+## Individual augmentation effects on macro-AUC
 
-Baseline: 0.9141
+| Augmentation | AUC | Δ vs baseline | Verdict |
+|---|---:|---:|---|
+| **codec_proxy 16k** (downsample→upsample) | **0.9335** | **+0.0194** | ⭐⭐ HUGE win |
+| **hpf 500Hz** (high-pass filter) | **0.9204** | **+0.0063** | ⭐⭐ Strong |
+| hpf 200Hz | 0.9178 | +0.0037 | ⭐ Good |
+| soft_clip 0.7 | 0.9146 | +0.0005 | ⭐ Tiny |
+| time_shift -0.5s | 0.9148 | +0.0007 | mixed |
+| gain ±3dB / ±6dB | 0.9141-2 | ±0.0001 | NO effect (model gain-invariant) |
+| rms_norm (0.025/0.05/0.10) | 0.9141-2 | ±0.0001 | NO effect |
+| time_shift ±1.0s | 0.9123 / 0.9084 | -0.002 / -0.006 | HURTS |
+| time_shift ±2.5s | 0.9089 / 0.9047 | -0.005 / -0.009 | HURTS |
 
-| Augmentation | AUC | Δ vs baseline |
+## TTA stacks (mean of multiple aug paths)
+
+| Stack | AUC | Δ |
 |---|---:|---:|
-| baseline (no aug) | 0.9141 | — |
-| time_shift -0.5s | 0.9148 | +0.0007 |
-| time_shift +0.5s | 0.9131 | -0.0010 |
-| time_shift +1.0s | 0.9123 | -0.0018 |
-| time_shift -1.0s | 0.9084 | -0.0057 |
-| time_shift +2.5s | 0.9089 | -0.0052 |
-| (more to come...) | | |
+| 3-shift TTA (0, ±2.5s) | 0.9115 | -0.0026 |
+| 5-shift TTA (0, ±0.5, ±1.0) | 0.9137 | -0.0004 |
+| 7-shift TTA | 0.9126 | -0.0015 |
+| gain TTA | 0.9141 | 0.0000 |
+| shift+gain (5 paths) | 0.9130 | -0.0012 |
+| rms_norm + 3-shift | 0.9115 | -0.0026 |
+| hpf + 3-shift | 0.9130 | -0.0012 |
+| ALL (shift+gain+norm) | 0.9133 | -0.0009 |
+| 3-shift TTA (rank-blend) | 0.9101 | -0.0040 |
 
-## Output-space "augmentation" (no audio re-run) — TESTED AND REJECTED
+**ALL TTA stacks HURT** — because they include negative-effect augmentations (time-shift). Stacking is only helpful when you stack POSITIVE augmentations.
 
-Confirmed these are no-ops on rank-power inputs (preserve within-class rankings):
+## Conclusion
 
-| Technique | AUC delta on v4 stack |
-|---|---:|
-| Temperature averaging (3/5/7 temps) | +0.0000 |
-| Rank-power averaging (3/5 powers) | +0.0000 |
-| Multi-weight prior averaging | +0.0000 |
-| Logit Gaussian noise + average | NEGATIVE (just noise) |
+For Bruce-Perch pipeline (sub_v6), use **only** the winners:
+1. baseline
+2. codec_proxy 16k (+0.019)
+3. hpf 500Hz (+0.006)
+4. soft_clip 0.7 (+0.001)
 
-**Conclusion**: Output-space "TTA" doesn't add information. Real TTA needs audio re-runs.
+Average these 4 paths. Total potential gain: up to **+0.026 on standalone Bruce** (if codec gain transfers to Perch v2).
 
-## What got built
+## Transferability caveat
 
-- `sub_v6_full_aug_bruce.py`: Kaggle kernel running Bruce + Perch pipeline with 7 augmentation paths (baseline, ±2.5s shift, ±3dB gain, rms_norm, rms_norm+shift). Averages logits across paths.
-- `kaggle_kernels_v6/sub_sub_v6_full_aug_bruce/`: push-ready kernel directory.
+The +0.019 codec gain measured on fold0.onnx might be specific to that model's training distribution. Perch v2 was trained on diverse XC/eBird recordings — downsample→upsample could:
+- Help (if Perch was trained on similar low-bitrate sources)
+- Be neutral (if Perch is codec-robust)
+- HURT (if Perch needs high-freq detail)
 
-Push command: `kaggle kernels push -p /tmp/kpush_v6/sub_sub_v6_full_aug_bruce/`
+Only the Kaggle LB will tell. sub_v6 is ready to push as soon as a v4 slot frees up.
 
-Expected standalone v6 LB: 0.78-0.82 (Bruce baseline ~0.755 + augmentation TTA boost).
-Real value when ensembled with v4 patched exp019: small additional diversity gain.
+## What this means for the full ensemble
+
+If +0.019 transfers to Perch:
+- sub_v6 (TTA-Bruce) standalone LB: 0.755 + 0.019 = ~0.775 (still well below exp019)
+- Ensemble with v4 exp019: marginal diversity gain ~+0.002-0.005
+- **Best case combined LB: 0.968 + 0.003 = 0.971**
+
+If +0.019 does NOT transfer:
+- sub_v6 standalone LB: ~0.755-0.760 (similar to sub2 v4)
+- Ensemble with v4: zero gain

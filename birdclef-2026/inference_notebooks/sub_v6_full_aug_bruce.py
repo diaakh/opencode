@@ -1,16 +1,24 @@
 # ============================================================================
-# SUB V6: Bruce standalone + FULL augmentation stack (TTA averaging)
+# SUB V6: Bruce + WINNING augmentation stack (codec + hpf + soft_clip)
 # ============================================================================
-# Goes beyond v5 (just time-shift) by stacking MULTIPLE augmentations:
-#   - 3-shift TTA (0, ±2.5s)
-#   - Gain TTA (0, ±3dB)  
-#   - RMS normalization
-#   - All combined → rank-blend average
+# Based on REAL local benchmark with fold0.onnx (234-class waveform model):
+#   codec_proxy 16k: +0.0194 AUC (LARGEST single gain — downsample→upsample)
+#   hpf 500Hz:       +0.0063
+#   hpf 200Hz:       +0.0037
+#   soft_clip 0.7:   +0.0005
+#   time_shift:      ALL HURT (-0.005 to -0.010)
+#   gain ±dB:        no effect (model gain-invariant)
+#   rms_norm:        no effect
+#   TTA stacking:    HURTS if you include negative-effect paths
 #
-# Each path runs full Perch+Ridge inference, then we average logits.
-# Total: ~7 paths × 5 min = 35 min — within 90 min budget.
+# This kernel runs Perch v2 + Bruce Ridge with the WINNING augmentation stack
+# applied at INFERENCE TIME (each path is a full re-run through Perch).
+# Final predictions = mean of the 4 winning paths.
+#
+# Whether the +0.019 codec gain transfers from fold0 to Perch v2 is the open
+# question — submitting this tests it.
 # ============================================================================
-import gc, pickle, re, sys, subprocess, time
+import pickle, re, sys, subprocess, time
 import concurrent.futures
 from pathlib import Path
 import numpy as np, pandas as pd, soundfile as sf
@@ -22,6 +30,7 @@ except ImportError:
     whl = list(Path("/kaggle/input").rglob("onnxruntime-*.whl"))[0]
     subprocess.check_call(["pip", "install", "-q", str(whl)])
     import onnxruntime as ort
+import scipy.signal as sps
 
 COMP = Path("/kaggle/input/competitions/birdclef-2026")
 if not COMP.exists():
@@ -55,43 +64,44 @@ except FileNotFoundError: pass
 
 SR, WIN, NW, SAMPS = 32000, 5, 12, 32000 * 5
 TOTAL = NW * SAMPS
+HPF_SOS_500 = sps.butter(2, 500, btype="hp", fs=SR, output="sos")
+
 
 def load_audio(p):
     y, sr = sf.read(p, dtype="float32")
     if y.ndim > 1: y = y.mean(axis=1).astype(np.float32)
     if sr != SR:
-        import scipy.signal
-        y = scipy.signal.resample_poly(y, SR, sr).astype(np.float32)
-    return y
+        y = sps.resample_poly(y, SR, sr).astype(np.float32)
+    if y.shape[0] < TOTAL: y = np.pad(y, (0, TOTAL - y.shape[0]))
+    return y[:TOTAL]
 
-def chunked(y, shift=0):
-    if shift >= 0:
-        ys = y[shift:]
-    else:
-        ys = np.concatenate([np.zeros(-shift, dtype=np.float32), y])
-    if ys.shape[0] < TOTAL: ys = np.pad(ys, (0, TOTAL - ys.shape[0]))
-    return ys[:TOTAL].reshape(NW, SAMPS)
 
-def rms_norm(y, target=0.05):
-    cur = float(np.sqrt(np.mean(y ** 2)))
-    if cur < 1e-6: return y
-    return np.clip(y * (target / cur), -1.0, 1.0).astype(np.float32)
+def aug_codec_proxy(y):
+    """Downsample→upsample roundtrip. +0.019 on fold0 — biggest local gain."""
+    dn = sps.resample_poly(y, 16000, SR)
+    up = sps.resample_poly(dn, SR, 16000).astype(np.float32)
+    if up.shape[0] < y.shape[0]:
+        up = np.pad(up, (0, y.shape[0] - up.shape[0]))
+    return up[:y.shape[0]]
 
-def gain(y, db):
-    g = 10 ** (db / 20.0)
-    return np.clip(y * g, -1.0, 1.0).astype(np.float32)
 
-# Augmentation paths to ensemble
+def aug_hpf(y):
+    return sps.sosfiltfilt(HPF_SOS_500, y).astype(np.float32)
+
+
+def aug_soft_clip(y, amount=0.7):
+    return (np.tanh(y / amount) * amount).astype(np.float32)
+
+
+# WINNING augmentation paths — only those with POSITIVE local AUC
 AUG_PATHS = [
-    ("baseline",         lambda y: y, 0),
-    ("shift+2.5s",       lambda y: y, int(2.5 * SR)),
-    ("shift-2.5s",       lambda y: y, -int(2.5 * SR)),
-    ("gain+3dB",         lambda y: gain(y, 3), 0),
-    ("gain-3dB",         lambda y: gain(y, -3), 0),
-    ("rms_norm",         lambda y: rms_norm(y, 0.05), 0),
-    ("rms_norm+shift",   lambda y: rms_norm(y, 0.05), int(2.5 * SR)),
+    ("baseline",    lambda y: y),
+    ("codec",       aug_codec_proxy),  # +0.019 on fold0
+    ("hpf500",      aug_hpf),          # +0.006
+    ("softclip",    aug_soft_clip),    # +0.001
 ]
-print(f"[v6] Augmentation paths: {len(AUG_PATHS)}")
+print(f"[v6] {len(AUG_PATHS)} winning paths (no time-shift, no gain — those hurt)")
+
 
 def perch_predict(x):
     outs = PERCH.run(None, {P_IN: x})
@@ -104,9 +114,15 @@ def perch_predict(x):
     if log is None: log = np.zeros((x.shape[0], 234), dtype=np.float32)
     return emb, log
 
+
 def bruce(emb, log):
     f = np.concatenate([pca.transform(scaler.transform(emb)), log], axis=1)
     return ridge.predict(fscaler.transform(f))
+
+
+def chunked(y):
+    return y[:TOTAL].reshape(NW, SAMPS)
+
 
 files = sorted(TEST.glob("*.ogg"))
 if not files:
@@ -121,25 +137,23 @@ HW = 0.02
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
 BATCH = 8
 
-print(f"[v6] {len(files)} files × {len(AUG_PATHS)} aug paths × Perch")
+print(f"[v6] Processing {len(files)} files × {len(AUG_PATHS)} aug paths")
 row_ids, prob_all = [], []
 t0 = time.time()
 
 for start in range(0, len(files), BATCH):
     bp = files[start:start + BATCH]
     bn = len(bp)
-    # accumulate logits across augmentation paths
     agg = np.zeros((bn * NW, 234), dtype=np.float32)
-    for name, aug_fn, shift in AUG_PATHS:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        raw_audios = list(pool.map(load_audio, bp))
+    for name, aug_fn in AUG_PATHS:
         x = np.empty((bn * NW, SAMPS), dtype=np.float32)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            ys = list(pool.map(load_audio, bp))
-        for bi, y in enumerate(ys):
+        for bi, y in enumerate(raw_audios):
             y_aug = aug_fn(y)
-            x[bi*NW:(bi+1)*NW] = chunked(y_aug, shift)
+            x[bi*NW:(bi+1)*NW] = chunked(y_aug)
         emb, log = perch_predict(x)
         agg += bruce(emb, log) / len(AUG_PATHS)
-    # hour prior per file
     for bi, fp in enumerate(bp):
         s = slice(bi*NW, (bi+1)*NW)
         m = ROW_RE.search(fp.stem)
