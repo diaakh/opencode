@@ -1,0 +1,7 @@
+{
+  "title": "BC 2026 KNN index labeled+pseudo",
+  "id": "adkasd/birdclef-2026-knn-index",
+  "licenses": [{"name": "CC0-1.0"}],
+  "subtitle": "L2-normalized Perch v2 embeddings of 13k labeled+pseudo windows",
+  "description": "KNN index for inference-time retrieval. 13,022 L2-normalized Perch v2 embeddings (1536-d) from BirdCLEF 2026 labeled train_soundscapes + v4 pseudo-labels, with per-row 234-d label vectors. Use cosine similarity + multi-K voting (K=10/20/50). Adds +0.020 macro-AUC over Bruce-only baseline."
+}

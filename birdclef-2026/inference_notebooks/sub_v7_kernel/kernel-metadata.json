@@ -1,0 +1,16 @@
+{
+  "id": "adkasd/birdclef-2026-sub-v7-prior-test",
+  "title": "birdclef 2026 sub v7 prior test",
+  "code_file": "sub_v7_test.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "adkasd/birdclef-2026-priors-research"
+  ]
+}
