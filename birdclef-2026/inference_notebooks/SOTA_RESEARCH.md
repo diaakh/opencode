@@ -97,3 +97,41 @@ yermes/birdclef-2026-perch-yermes-v5/PyTorch/default/1              (YERMES Perc
 
 5. **Iterative noisy-student** (BirdCLEF 2025 1st place recipe): pseudo-label unlabeled audio with current ensemble, retrain BirdMAE on labeled+pseudo, repeat. Requires GPU training.
 
+
+## Perch 2.0 deployment attempts log (Phase 2 final)
+
+Attempted 15+ approaches to deploy Perch 2.0 on Kaggle. All blocked by the same
+fundamental issue: Perch 2.0's SavedModel contains XLA-compiled computations
+(XlaCallModule v10) that require a TF runtime Kaggle doesn't provide.
+
+| Attempt | Approach | Error |
+|---|---|---|
+| v1 | Default TF 2.18 | XlaCallModule version 10 not supported |
+| v2 | Set jit=False env | No effect (XLA baked in SavedModel) |
+| v3 | perch_v2_cpu variant | Same XLA error |
+| v4 | Install TF 2.21 wheel offline | keras dep conflict |
+| v5 | + --no-deps | libtfkernel_sobol_op undefined absl symbol |
+| v6 | enable_internet + pip install --upgrade | Same ABI mismatch |
+| v7 | venv with --system-site-packages | venv create failed |
+| v8 | pip --target=/tmp/tfnew | protobuf 5 vs gencode 6 mismatch |
+| v9 | + protobuf>=6 | System protobuf shadows |
+| v10 | --force-reinstall direct | libtf absl symbol still broken |
+| v11 | docker_image: gcr.io/kaggle-images/python:v168 | Cannot deserialize XLA |
+| v12 | perch-hoplite library install | TF 2.19 in v168, same XLA issue |
+| v13 | + ModelConfigName.PERCH_V2_CPU enum loading | Same Cannot deserialize |
+
+**Root cause:** Perch 2.0's XLA modules require **TF 2.20+ with matching XLA backend
+build**. Kaggle's containers ship TF 2.18-2.19 with older XLA backend. Even
+the v168 docker image release (March 2026) doesn't fully resolve this.
+
+**Locally we have TF 2.21 working** with Perch 2.0 CPU (verified). But cannot
+deploy this to Kaggle without test_soundscapes access locally.
+
+**Future workarounds:**
+1. Use `tf2onnx` to convert Perch 2.0 to ONNX format (requires GPU local
+   inference of one test sample to establish architecture, then weight export)
+2. Use PyTorch reimplementation if Google releases one (current is TF-only)
+3. Wait for Kaggle to upgrade default docker image to TF 2.20+
+
+**Concession:** Perch 2.0 stays out of our LB stack. BirdMAE remains our
+strongest deployed signal. Production stack: **0.9823 honest OOF**, no Perch 2.0.
