@@ -1360,7 +1360,7 @@ if 'Model_2' in _ensemble_models or \
         #   2. If the SED ONNX models accept arbitrary batch, stack N files' mels into one call.
         #      Otherwise fall back to per-file ONNX calls (still benefits from prefetch).
         import concurrent.futures as _cf
-        SED_BATCH_FILES = 8
+        SED_BATCH_FILES = 2
 
         # Runtime probe: does this SED ONNX accept batch > N_WINDOWS?
         _sed_supports_batching = True
@@ -1385,7 +1385,7 @@ if 'Model_2' in _ensemble_models or \
 
         _effective_batch = SED_BATCH_FILES if _sed_supports_batching else 1
 
-        with _cf.ThreadPoolExecutor(max_workers=4) as _pool:
+        with _cf.ThreadPoolExecutor(max_workers=2) as _pool:
             _next_batch_paths = test_files[:_effective_batch]
             _next_futs = [_pool.submit(_load_chunks_and_mel, p) for p in _next_batch_paths]
 
@@ -1436,6 +1436,9 @@ if 'Model_2' in _ensemble_models or \
                     elapsed = time.time() - t0
                     rate = done / max(elapsed, 1e-6)
                     print(f'  [{done:4d}/{len(test_files)}] {elapsed:.1f}s  {rate:.2f} files/s')
+                # Release intermediate arrays before next iteration
+                batch_results = None
+                gc.collect()
 
         all_preds_arr = np.concatenate(all_preds) if all_preds else np.zeros((0, NUM_CLASSES), np.float32)
         print(f'\nInference: {len(all_rows)} rows, {time.time()-t0:.1f}s total')
@@ -5836,7 +5839,7 @@ if 'Model_4' in _ensemble_models:
 
     # FAST: prefetch audio + opportunistic cross-file batch (probe first, fall back if not supported)
     import concurrent.futures as _cf_sed4
-    SED4_BATCH_FILES = 8
+    SED4_BATCH_FILES = 2
     _sed4_supports_batch = True
     if test_paths:
         try:
@@ -5855,7 +5858,7 @@ if 'Model_4' in _ensemble_models:
         mel = audio_to_mel(chunks)
         return p, chunks, ends, mel
 
-    with _cf_sed4.ThreadPoolExecutor(max_workers=4) as _pool:
+    with _cf_sed4.ThreadPoolExecutor(max_workers=2) as _pool:
         _next_paths = test_paths[:_sed4_eff_batch]
         _next_futs = [_pool.submit(_sed4_load, p) for p in _next_paths]
 
@@ -5902,6 +5905,8 @@ if 'Model_4' in _ensemble_models:
             step = max(_sed4_eff_batch * 5, 50)
             if done == _sed4_eff_batch or done % step == 0 or done == len(test_paths):
                 print(f"SED: {done}/{len(test_paths)}")
+            batch_results = None
+            gc.collect()
 
     sed_preds_arr = np.concatenate(sed_preds, axis=0)
     sed_sub = pd.DataFrame(np.clip(sed_preds_arr, 0.0, 1.0), columns=PRIMARY_LABELS)
@@ -7651,7 +7656,7 @@ if 'Model_7' in _ensemble_models:
 
         # FAST: prefetch audio + opportunistic cross-file batch
         import concurrent.futures as _cf_sed7
-        SED7_BATCH_FILES = 8
+        SED7_BATCH_FILES = 2
         _sed7_supports_batch = True
         if test_paths:
             try:
@@ -7670,7 +7675,7 @@ if 'Model_7' in _ensemble_models:
             mel = audio_to_mel(chunks)
             return p, chunks, ends, mel
 
-        with _cf_sed7.ThreadPoolExecutor(max_workers=4) as _pool:
+        with _cf_sed7.ThreadPoolExecutor(max_workers=2) as _pool:
             _next_paths = test_paths[:_sed7_eff_batch]
             _next_futs = [_pool.submit(_sed7_load, p) for p in _next_paths]
 
@@ -7717,6 +7722,8 @@ if 'Model_7' in _ensemble_models:
                 step = max(_sed7_eff_batch * 5, 50)
                 if done == _sed7_eff_batch or done % step == 0 or done == len(test_paths):
                     print(f"SED: {done}/{len(test_paths)}")
+                batch_results = None
+                gc.collect()
 
         sed_preds_arr = np.concatenate(sed_preds, axis=0)
         sed_sub = pd.DataFrame(np.clip(sed_preds_arr, 0.0, 1.0), columns=PRIMARY_LABELS)
