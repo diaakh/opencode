@@ -1,0 +1,27 @@
+{
+  "fold_aucs": [
+    0.9795946032172895,
+    0.9630879203473639,
+    0.9628822450762534,
+    0.9469016306946696,
+    0.9651805456651954
+  ],
+  "mean_fold_auc": 0.9635293890001545,
+  "lgb_macro_auc": 0.8638861298043345,
+  "n_classes": 75,
+  "n_train_samples": 55425,
+  "n_positives": 3122,
+  "params": {
+    "objective": "binary",
+    "metric": "auc",
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "max_depth": -1,
+    "min_child_samples": 50,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 5,
+    "is_unbalance": true,
+    "verbose": -1
+  }
+}
