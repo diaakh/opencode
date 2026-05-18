@@ -1,0 +1,17 @@
+strategy,macro_auc
+per_class_oracle (cheating),0.9132144312442212
+per_class_auc_softmax_blend,0.9128222192756027
+specialist_routed (Perch>Bruce>SED-3),0.8665384687281369
+perch+bruce+SED-3 stack,0.8670714147576395
+uniform_rank_avg_all_9,0.7727605445151516
+top3_rank_avg,0.836732227563647
+--- single best models ---,
+single_perch_v2_raw,0.8858602923294445
+single_bruce_clip_ridge,0.8669738122261405
+single_alexander_b0,0.6344055979306558
+single_baiyuby_v2s_max_FLIPPED,0.6331738424378973
+single_long_convnextv2,0.6302988590599027
+single_mauricio_b0_scratch,0.623221918311088
+single_snowflake_efnetv2m,0.6009850269004655
+single_snowflake_convnext,0.598801555109674
+single_baiyuby_v2s_att,0.5877984407371919
