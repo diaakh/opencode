@@ -146,7 +146,7 @@ def compute_mel_batch(wave_batch_np):
 
 t0 = time.time()
 n_done = 0
-BATCH_FILES = 4  # OPTIMIZATION: 4 files × per-file windows per ViT-B forward pass
+BATCH_FILES = 8  # OPTIMIZATION v2: 4 files × per-file windows per ViT-B forward pass
 from concurrent.futures import ThreadPoolExecutor
 
 # Pre-build BirdMAE → BC2026 mapping arrays for vectorized scatter
