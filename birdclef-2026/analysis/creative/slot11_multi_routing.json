@@ -1,0 +1,164 @@
+{
+  "116570": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.372,
+    "delta": 0.036130536130536184,
+    "taxa": "Reptilia"
+  },
+  "1491113": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.402,
+    "delta": 0.050786344457230403,
+    "taxa": "Amphibia"
+  },
+  "22961": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.35,
+    "delta": 0.01544966018650229,
+    "taxa": "Amphibia"
+  },
+  "22973": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.36,
+    "delta": 0.029891643906531762,
+    "taxa": "Amphibia"
+  },
+  "25092": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.368,
+    "delta": 0.03391608391608414,
+    "taxa": "Amphibia"
+  },
+  "326272": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.503,
+    "delta": 0.10153024046635895,
+    "taxa": "Amphibia"
+  },
+  "47144": {
+    "champion": "V73",
+    "weight": 0.35,
+    "delta": 0.01740331491712699,
+    "taxa": "Mammalia"
+  },
+  "47158son02": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.454,
+    "delta": 0.07689305230288834,
+    "taxa": "Insecta"
+  },
+  "47158son05": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.595,
+    "delta": 0.14764492753623193,
+    "taxa": "Insecta"
+  },
+  "47158son06": {
+    "champion": "sub_v8 MLP-5seed",
+    "weight": 0.35,
+    "delta": 0.017799352750809017,
+    "taxa": "Insecta"
+  },
+  "47158son08": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.387,
+    "delta": 0.04358807234805295,
+    "taxa": "Insecta"
+  },
+  "47158son09": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.449,
+    "delta": 0.07435197817189632,
+    "taxa": "Insecta"
+  },
+  "47158son10": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.535,
+    "delta": 0.11726328440209466,
+    "taxa": "Insecta"
+  },
+  "47158son12": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.485,
+    "delta": 0.09264305177111709,
+    "taxa": "Insecta"
+  },
+  "47158son13": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.419,
+    "delta": 0.05954638849375693,
+    "taxa": "Insecta"
+  },
+  "47158son14": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.47,
+    "delta": 0.08482347546996782,
+    "taxa": "Insecta"
+  },
+  "47158son15": {
+    "champion": "Bruce",
+    "weight": 0.35,
+    "delta": 0.022925263640532045,
+    "taxa": "Insecta"
+  },
+  "47158son16": {
+    "champion": "Bruce",
+    "weight": 0.35,
+    "delta": 0.024300779458963917,
+    "taxa": "Insecta"
+  },
+  "47158son20": {
+    "champion": "Bruce",
+    "weight": 0.364,
+    "delta": 0.03220999541494729,
+    "taxa": "Insecta"
+  },
+  "47158son24": {
+    "champion": "BirdAVES-RAG",
+    "weight": 0.398,
+    "delta": 0.04924242424242409,
+    "taxa": "Insecta"
+  },
+  "47158son25": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.451,
+    "delta": 0.07531806615776071,
+    "taxa": "Insecta"
+  },
+  "517063": {
+    "champion": "ConvNeXt-RAG",
+    "weight": 0.41,
+    "delta": 0.05480058197963067,
+    "taxa": "Amphibia"
+  },
+  "74113": {
+    "champion": "Probe Ridge",
+    "weight": 0.399,
+    "delta": 0.049525101763907786,
+    "taxa": "Mammalia"
+  },
+  "compau": {
+    "champion": "V73",
+    "weight": 0.35,
+    "delta": 0.013814850964787184,
+    "taxa": "Aves"
+  },
+  "orwpar": {
+    "champion": "V73",
+    "weight": 0.35,
+    "delta": 0.013456240728968005,
+    "taxa": "Aves"
+  },
+  "purjay1": {
+    "champion": "V73",
+    "weight": 0.387,
+    "delta": 0.043596730245231585,
+    "taxa": "Aves"
+  },
+  "rufhor2": {
+    "champion": "V73",
+    "weight": 0.35,
+    "delta": 0.0217687074829932,
+    "taxa": "Aves"
+  }
+}
