@@ -1,0 +1,86 @@
+{
+  "1491113": {
+    "weight_bm": 0.35,
+    "weight_exp": 0.65,
+    "delta": 0.020771001150748036,
+    "champion": "BirdMAE"
+  },
+  "326272": {
+    "weight_bm": 0.359,
+    "weight_exp": 0.641,
+    "delta": 0.029390332766577654,
+    "champion": "BirdMAE"
+  },
+  "47158son01": {
+    "weight_bm": 0.381,
+    "weight_exp": 0.619,
+    "delta": 0.04062424095214956,
+    "champion": "BirdMAE"
+  },
+  "47158son03": {
+    "weight_bm": 0.375,
+    "weight_exp": 0.625,
+    "delta": 0.037685638252210385,
+    "champion": "BirdMAE"
+  },
+  "47158son04": {
+    "weight_bm": 0.4,
+    "weight_exp": 0.6,
+    "delta": 0.05002444190972788,
+    "champion": "BirdMAE"
+  },
+  "47158son10": {
+    "weight_bm": 0.35,
+    "weight_exp": 0.65,
+    "delta": 0.021589836037428145,
+    "champion": "BirdMAE"
+  },
+  "47158son11": {
+    "weight_bm": 0.396,
+    "weight_exp": 0.604,
+    "delta": 0.048048048048047964,
+    "champion": "BirdMAE"
+  },
+  "47158son19": {
+    "weight_bm": 0.35,
+    "weight_exp": 0.65,
+    "delta": 0.022343324250681196,
+    "champion": "BirdMAE"
+  },
+  "47158son20": {
+    "weight_bm": 0.35,
+    "weight_exp": 0.65,
+    "delta": 0.023842274186153145,
+    "champion": "BirdMAE"
+  },
+  "517063": {
+    "weight_bm": 0.41,
+    "weight_exp": 0.59,
+    "delta": 0.05480058197963067,
+    "champion": "ConvNeXt-RAG"
+  },
+  "74113": {
+    "weight_bm": 0.36,
+    "weight_exp": 0.64,
+    "delta": 0.02985074626865669,
+    "champion": "BirdMAE"
+  },
+  "redjun": {
+    "weight_bm": 0.35,
+    "weight_exp": 0.65,
+    "delta": 0.023383768913342595,
+    "champion": "BirdMAE"
+  },
+  "strher2": {
+    "weight_bm": 0.65,
+    "weight_exp": 0.35,
+    "delta": 0.17774762550881973,
+    "champion": "BirdMAE"
+  },
+  "trsowl": {
+    "weight_bm": 0.384,
+    "weight_exp": 0.616,
+    "delta": 0.042183622828784295,
+    "champion": "BirdMAE"
+  }
+}
