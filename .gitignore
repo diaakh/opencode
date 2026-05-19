@@ -25,3 +25,9 @@ target
 opencode-dev
 logs/
 *.bun-build
+
+# birdclef large binary artifacts (Kaggle datasets, KNN indices, embeddings)
+birdclef-2026/analysis/context_label/
+birdclef-2026/analysis/knn_retrieval/
+birdclef-2026/inference_notebooks/knn_index_bundle/
+birdclef-2026/inference_notebooks/priors_bundle/
