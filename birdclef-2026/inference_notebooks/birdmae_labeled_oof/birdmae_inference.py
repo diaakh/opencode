@@ -146,53 +146,76 @@ def compute_mel_batch(wave_batch_np):
 
 t0 = time.time()
 n_done = 0
-BATCH = 16
+BATCH_FILES = 4  # OPTIMIZATION: 4 files × per-file windows per ViT-B forward pass
+from concurrent.futures import ThreadPoolExecutor
+
+# Pre-build BirdMAE → BC2026 mapping arrays for vectorized scatter
+bi_arr = np.array(list(birdmae_to_bc.keys()), dtype=np.int32)
+ci_arr = np.array(list(birdmae_to_bc.values()), dtype=np.int32)
+
+def _load_windows_for_file(f, idx_list_l):
+    """Returns (file_key, np.ndarray (n_windows, WIN_SAMP), list of row_i)."""
+    fpath = ts_dir / f
+    if not fpath.exists():
+        for ext in [".ogg", ".wav", ".flac"]:
+            if (ts_dir / (f + ext)).exists():
+                fpath = ts_dir / (f + ext); break
+    try:
+        audio, sr = sf.read(str(fpath))
+        if audio.ndim > 1: audio = audio.mean(axis=1)
+        audio = audio.astype(np.float32)
+    except Exception:
+        return f, None, idx_list_l
+    wins = np.zeros((len(idx_list_l), WIN_SAMP), dtype=np.float32)
+    for j, row_i in enumerate(idx_list_l):
+        st_val = labels.iloc[row_i]["start"]
+        if isinstance(st_val, str) and ":" in st_val:
+            h, m, sec = st_val.split(":")
+            start_sec = int(h) * 3600 + int(m) * 60 + int(sec)
+        else:
+            start_sec = int(float(st_val))
+        start_samp = start_sec * SR
+        end_samp = start_samp + WIN_SAMP
+        if end_samp <= len(audio):
+            wins[j] = audio[start_samp:end_samp]
+        else:
+            avail = max(0, len(audio) - start_samp)
+            if avail > 0:
+                wins[j, :avail] = audio[start_samp:start_samp+avail]
+    return f, wins, idx_list_l
+
+file_items = list(file_to_idx.items())
+pool = ThreadPoolExecutor(max_workers=BATCH_FILES)
+# Prefetch first batch
+next_futures = [pool.submit(_load_windows_for_file, f, il) for f, il in file_items[:BATCH_FILES]]
+
 with torch.no_grad():
-    for f, idx_list in file_to_idx.items():
-        fpath = ts_dir / f
-        if not fpath.exists():
-            for ext in [".ogg", ".wav", ".flac"]:
-                if (ts_dir / (f + ext)).exists():
-                    fpath = ts_dir / (f + ext); break
-        try:
-            audio, sr = sf.read(str(fpath))
-            if audio.ndim > 1: audio = audio.mean(axis=1)
-            audio = audio.astype(np.float32)
-        except: continue
-        
-        # Build batch of windows for this file
-        win_batch = []
-        for row_i in idx_list:
-            st_val = labels.iloc[row_i]["start"]
-            if isinstance(st_val, str) and ":" in st_val:
-                h, m, s = st_val.split(":")
-                start_sec = int(h) * 3600 + int(m) * 60 + int(s)
-            else:
-                start_sec = int(float(st_val))
-            start_samp = start_sec * SR
-            end_samp = start_samp + WIN_SAMP
-            if end_samp <= len(audio):
-                clip = audio[start_samp:end_samp]
-            else:
-                clip = np.zeros(WIN_SAMP, dtype=np.float32)
-                avail = max(0, len(audio) - start_samp)
-                if avail > 0:
-                    clip[:avail] = audio[start_samp:start_samp+avail]
-            win_batch.append(clip)
-        if not win_batch: continue
-        
-        # Batched forward — compute fbank using EXACT training pipeline
-        spec = compute_mel_batch(win_batch).to(device)  # (B, 1, 512, 128)
+    for start in range(0, len(file_items), BATCH_FILES):
+        batch_results = [fut.result() for fut in next_futures]
+        next_start = start + BATCH_FILES
+        if next_start < len(file_items):
+            next_futures = [pool.submit(_load_windows_for_file, f, il) for f, il in file_items[next_start:next_start + BATCH_FILES]]
+        # Stack windows across all files in batch
+        all_wins = []
+        all_row_indices = []
+        for f, wins, idx_list_l in batch_results:
+            if wins is None: continue
+            all_wins.append(wins)
+            all_row_indices.extend(idx_list_l)
+        if not all_wins: continue
+        wave_batch = np.concatenate(all_wins, axis=0)
+        spec = compute_mel_batch(wave_batch).to(device)  # (total_windows, 1, 512, 128)
         logits = model(spec)
         probs = torch.sigmoid(logits).cpu().numpy()
-        # Place into BC2026 columns
-        for j, row_i in enumerate(idx_list):
-            for bi, ci in birdmae_to_bc.items():
-                P_birdmae[row_i, ci] = probs[j, bi]
-        n_done += 1
-        if n_done % 10 == 0:
+        # Vectorized scatter into BC2026 columns
+        for j, row_i in enumerate(all_row_indices):
+            P_birdmae[row_i, ci_arr] = probs[j, bi_arr]
+        n_done += len(batch_results)
+        if n_done % 8 == 0 or n_done >= len(file_items):
             el = time.time() - t0
-            print(f"  [{n_done}/{len(file_to_idx)}] {el:.0f}s rate={n_done/el:.2f}/s")
+            rate = n_done / el
+            print(f"  [{n_done}/{len(file_items)}] {el:.0f}s rate={rate:.2f}files/s")
+pool.shutdown()
 
 print(f"\nTotal: {time.time()-t0:.0f}s")
 
