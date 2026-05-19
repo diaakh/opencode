@@ -1,0 +1,86 @@
+{
+  "1491113": {
+    "champion": "BirdMAE",
+    "auc": 0.9608937476026084,
+    "delta": 0.020771001150748036,
+    "taxa": "Amphibia"
+  },
+  "326272": {
+    "champion": "BirdMAE",
+    "auc": 0.9744352683993199,
+    "delta": 0.029390332766577654,
+    "taxa": "Amphibia"
+  },
+  "47158son01": {
+    "champion": "BirdMAE",
+    "auc": 0.9946563031333495,
+    "delta": 0.04062424095214956,
+    "taxa": "Insecta"
+  },
+  "47158son03": {
+    "champion": "BirdMAE",
+    "auc": 0.9896986865825392,
+    "delta": 0.037685638252210385,
+    "taxa": "Insecta"
+  },
+  "47158son04": {
+    "champion": "BirdMAE",
+    "auc": 0.9945413068274401,
+    "delta": 0.05002444190972788,
+    "taxa": "Insecta"
+  },
+  "47158son10": {
+    "champion": "BirdMAE",
+    "auc": 0.9926603141900593,
+    "delta": 0.021589836037428145,
+    "taxa": "Insecta"
+  },
+  "47158son11": {
+    "champion": "BirdMAE",
+    "auc": 0.9868421052631579,
+    "delta": 0.048048048048047964,
+    "taxa": "Insecta"
+  },
+  "47158son19": {
+    "champion": "BirdMAE",
+    "auc": 0.9942779291553133,
+    "delta": 0.022343324250681196,
+    "taxa": "Insecta"
+  },
+  "47158son20": {
+    "champion": "BirdMAE",
+    "auc": 0.9991976157725814,
+    "delta": 0.023842274186153145,
+    "taxa": "Insecta"
+  },
+  "517063": {
+    "champion": "ConvNeXt-RAG",
+    "auc": 0.9281675141370052,
+    "delta": 0.05480058197963067,
+    "taxa": "Amphibia"
+  },
+  "74113": {
+    "champion": "BirdMAE",
+    "auc": 0.9952510176390774,
+    "delta": 0.02985074626865669,
+    "taxa": "Mammalia"
+  },
+  "redjun": {
+    "champion": "BirdMAE",
+    "auc": 0.9311095827602017,
+    "delta": 0.023383768913342595,
+    "taxa": "Aves"
+  },
+  "strher2": {
+    "champion": "BirdMAE",
+    "auc": 0.9952510176390774,
+    "delta": 0.17774762550881973,
+    "taxa": "Aves"
+  },
+  "trsowl": {
+    "champion": "BirdMAE",
+    "auc": 0.9343510626820586,
+    "delta": 0.042183622828784295,
+    "taxa": "Aves"
+  }
+}
