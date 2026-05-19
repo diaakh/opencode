@@ -8354,7 +8354,7 @@ if not _BM_NO_TEST:
     all_rows = []
     all_preds = []
     t0 = time.time()
-    BATCH_FILES = 4  # 4 files × 12 windows = 48 windows per ViT-B forward pass
+    BATCH_FILES = 8  # 8 files × 12 windows = 96 windows per ViT-B forward pass
     from concurrent.futures import ThreadPoolExecutor
 
     # Pre-build BirdMAE-to-BC2026 mapping arrays for vectorized scatter
@@ -8545,7 +8545,7 @@ if _test_files:
     _ROW_RE = _re.compile(r"_(\d{8})_(\d{6})$")
     _all_rows = []; _all_preds = []
     _t0 = _t.time()
-    _BATCH = 4  # 4 files per batch = 48 windows per inference
+    _BATCH = 16  # 16 files per batch = 192 windows per inference
     _next_batch = _test_files[:_BATCH]
     _i = 0
     while _i < len(_test_files):
