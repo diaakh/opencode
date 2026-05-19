@@ -1,0 +1,18 @@
+BEST METRIC (LOO RMSE 0.0057, ρ +0.986)
+============================================================
+
+LB ≈ 0.278622
+     + -0.896967 * overall_auc
+     + 1.608740 * site_mean
+
+Where:
+  overall_auc = macro-AUC on labeled OOF (sklearn roc_auc_score, per-class avg)
+  site_mean = per-site macro-AUC weighted by row count
+
+Fit on 6 anchors:
+  exp019: in-sample 0.9516, actual 0.9490, err +0.0026
+  V73: in-sample 0.9410, actual 0.9410, err -0.0000
+  Bruce: in-sample 0.7549, actual 0.7550, err -0.0001
+  slot6_recon: in-sample 0.9413, actual 0.9460, err -0.0047
+  slot11_recon: in-sample 0.9487, actual 0.9490, err -0.0003
+  sub1_v3: in-sample 0.9226, actual 0.9200, err +0.0026
