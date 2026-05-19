@@ -1,0 +1,13 @@
+{
+  "id": "adkasd/bc26-list-soundscapes",
+  "title": "bc26 list soundscapes",
+  "code_file": "list_soundscapes.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"]
+}
