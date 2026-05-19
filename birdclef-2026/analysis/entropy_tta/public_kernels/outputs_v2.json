@@ -1,0 +1,647 @@
+[
+  {
+    "ref": "mtoshidesu/test-0-929-mod-w11-oof-framework-miaaaf",
+    "lb": 0.929,
+    "files": [
+      "test-0-929-mod-w11-oof-framework-miaaaf.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "youssefmo942009/small-tweaks-on-lb-score-0-947",
+    "lb": 0.947,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "submission.csv",
+      "small-tweaks-on-lb-score-0-947.log",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "saurabhrajvarma/birdclef-2026-audio-classification-0-922",
+    "lb": 0.922,
+    "files": [
+      "v4_logs.json",
+      "birdclef-2026-audio-classification-0-922.log",
+      "submission.csv",
+      "full_oof_meta_features.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "yaroslavkholmirzayev/v6-0949-replay",
+    "lb": 0.949,
+    "files": [
+      "v17_logs.json",
+      "submission_protossm.csv",
+      "subm_2.csv",
+      "v6-0949-replay.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "subm_karnakbayev_power_optimization.csv",
+      "subm_5.csv",
+      "full_oof_meta_features.npz",
+      "full_perch_meta.parquet",
+      "full_perch_arrays.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "pacerq/v51-onnx-cache-0-943-params",
+    "lb": 0.943,
+    "files": [
+      "v51-onnx-cache-0-943-params.log",
+      "submission.csv"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "rauffauzanrambe/birdclef-2026-lb-0-872-0-862-ultra-fast-batched",
+    "lb": 0.872,
+    "files": [
+      "birdclef-2026-lb-0-872-0-862-ultra-fast-batched.log",
+      "submission.csv",
+      "submission_prob_ft80_base20.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "baidalinadilzhan/perch-improved-lb-0-904",
+    "lb": 0.904,
+    "files": [
+      "submission.csv",
+      "perch-improved-lb-0-904.log",
+      "full_oof_meta_features.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "lingyu07/0-928-perch-yamnet-fast-blend",
+    "lb": 0.928,
+    "files": [
+      "v17_logs.json",
+      "0-928-perch-yamnet-fast-blend.log",
+      "submission.csv",
+      "yamnet_hardclass_debug.csv",
+      "full_oof_meta_features.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "mtoshidesu/test-0-948",
+    "lb": 0.948,
+    "files": [
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "test-0-948.log",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "romanrozen/birdclef-2026-stable-0-947",
+    "lb": 0.947,
+    "files": [
+      "birdclef-2026-stable-0-947.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "kojimar/0-949-lb-birdclef-2026-prior-axis-rank-fusion",
+    "lb": 0.949,
+    "files": [
+      "0-949-lb-birdclef-2026-prior-axis-rank-fusion.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "subm_karnakbayev_power_optimization.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "aidensong123/birdclef-2026-sed-baseline-training-lb-0-862",
+    "lb": 0.862,
+    "files": [
+      "birdclef-2026-sed-baseline-training-lb-0-862.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "itshyao/birdclef-2026-s106-eos5-0949-safealign2",
+    "lb": 0.949,
+    "files": [
+      "v17_logs.json",
+      "submission_protossm.csv",
+      "subm_2.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "subm_karnakbayev_power_optimization.csv",
+      "birdclef-2026-s106-eos5-0949-safealign2.log",
+      "subm_5.csv",
+      "full_oof_meta_features.npz",
+      "full_perch_meta.parquet",
+      "full_perch_arrays.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-direct-v44",
+    "lb": 0.946,
+    "files": [
+      "bc2026-raunak0946-direct-v44.log",
+      "submission.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "mtoshidesu/0-928-bird26-reproduce-perch-protossm-resssm",
+    "lb": 0.928,
+    "files": [
+      "0-928-bird26-reproduce-perch-protossm-resssm.log",
+      "full_oof_meta_features.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "tukotanzwoo/perch-v2embedprobe-bayesian-improvement-0-916",
+    "lb": 0.916,
+    "files": [
+      "submission.csv",
+      "perch-v2embedprobe-bayesian-improvement-0-916.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "mtoshidesu/0-934-birdclef-2026-clean-visual-pipeline",
+    "lb": 0.934,
+    "files": [
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "0-934-birdclef-2026-clean-visual-pipeline.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "marynaborovska/birdclef-26-protossm-inference-0-928-lb",
+    "lb": 0.928,
+    "files": [
+      "birdclef-26-protossm-inference-0-928-lb.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "rauffauzanrambe/birdclef-2026-lb-0-917-ultra-fast-batched-gpu",
+    "lb": 0.917,
+    "files": [
+      "birdclef-2026-lb-0-917-ultra-fast-batched-gpu.log",
+      "submission_prob_ft80_base20_full.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "youssefmo942009/edits-birdclef-2026-perch-v2-protossm-0-925",
+    "lb": 0.925,
+    "files": [
+      "edits-birdclef-2026-perch-v2-protossm-0-925.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-onlinepseudo-v51",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-onlinepseudo-v51.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-onlinepseudo-v50",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-onlinepseudo-v50.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "mtoshidesu/0-937-birdclef-2026-true-end-to-end-pipeline",
+    "lb": 0.937,
+    "files": [
+      "0-937-birdclef-2026-true-end-to-end-pipeline.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_meta.local.parquet",
+      "perch_arrays.local.npz"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "adarsh5harma/birdclef-2026-v54-lb-0948-swap",
+    "lb": 0.948,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "birdclef-2026-v54-lb-0948-swap.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "amulopapa67/birdclef-2026-youssef-lb0948-20260517",
+    "lb": 0.948,
+    "files": [
+      "submission_birdnet.csv",
+      "birdclef-2026-youssef-lb0948-20260517.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "kotata0306/birdclef-2026-youssef-lb0948-base",
+    "lb": 0.948,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "birdclef-2026-youssef-lb0948-base.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "wangdongyang/birdclef-2026-0-947-lb-b2-blend",
+    "lb": 0.947,
+    "files": [
+      "birdclef-2026-0-947-lb-b2-blend.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "adarsh5harma/birdclef-2026-v42-fork-0947",
+    "lb": 0.947,
+    "files": [
+      "birdclef-2026-v42-fork-0947.log",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0946-raunak-sed-blend-submit",
+    "lb": 0.946,
+    "files": [
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "birdclef-2026-r0946-raunak-sed-blend-submit.log",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-v49-condhead",
+    "lb": 0.946,
+    "files": [
+      "bc2026-raunak0946-v49-condhead.log",
+      "submission.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-clap-v53",
+    "lb": 0.946,
+    "files": [
+      "bc2026-raunak0946-clap-v53.log",
+      "submission.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-ppens-v54",
+    "lb": 0.946,
+    "files": [
+      "bc2026-raunak0946-ppens-v54.log",
+      "submission.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0947-ted-improved-submit",
+    "lb": 0.947,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "birdclef-2026-r0947-ted-improved-submit.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "kruzzcc/bc26-claude-r0947-birdnet",
+    "lb": 0.947,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "bc26-claude-r0947-birdnet.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0947-proto-rescue-submit",
+    "lb": 0.947,
+    "files": [
+      "submission_pre_rescue.csv",
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "proto_rescue_summary.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "birdclef-2026-r0947-proto-rescue-submit.log",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0946-birdnet-3way-submit",
+    "lb": 0.946,
+    "files": [
+      "birdclef-2026-r0946-birdnet-3way-submit.log",
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-onlinepseudo-v52",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-onlinepseudo-v52.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-bigproto-v55",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-bigproto-v55.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0946-clap-sidecar-v1",
+    "lb": 0.946,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "birdclef-2026-r0946-clap-sidecar-v1.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-ce-v65",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-ce-v65.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "ttyn4519/perch-task224-public0946-replay-robust-inputs",
+    "lb": 0.946,
+    "files": [
+      "submission_protossm.csv",
+      "perch-task224-public0946-replay-robust-inputs.log",
+      "submission.csv",
+      "submission_sed.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0946-yaroslav-robust-submit",
+    "lb": 0.946,
+    "files": [
+      "submission_protossm.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "birdclef-2026-r0946-yaroslav-robust-submit.log"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "mtoshidesu/test-birdclef-2026-perch-v2-protossm-0-925",
+    "lb": 0.925,
+    "files": [
+      "submission_protossm.csv",
+      "test-birdclef-2026-perch-v2-protossm-0-925.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "chaneyma/bc26-gate-v32-imaad0946-v26-shared-extcache",
+    "lb": 0.946,
+    "files": [
+      "gate_baseline_replicate_blend_summary.json",
+      "submission_v23_temporal_lse_tau002_alpha020_r1_mirror.csv",
+      "submission_v26_v23_adaptive_a010_fileconf_p010.csv",
+      "submission_original_gate_v6_40x20_nosynth.csv",
+      "submission_sed_imaad.csv",
+      "submission_v13_mirror_rare090.csv",
+      "submission_protossm_v8_all66_synth.csv",
+      "submission_blend_original_gate_baseline60_v7_30_v6_10.csv",
+      "submission_original_gate_baseline_replicate.csv",
+      "submission_protossm_v6_40x20_nosynth.csv",
+      "bc26-gate-v32-imaad0946-v26-shared-extcache.log",
+      "submission_v13_rare090_only.csv",
+      "submission_probe_v2.csv",
+      "submission_protossm.csv",
+      "submission_v13_mirror_only.csv",
+      "submission_protossm_v7_all66_nosynth.csv",
+      "submission_original_gate_v7_all66_nosynth.csv",
+      "submission_v15_probe_middle10_mirror.csv",
+      "submission_residual_stage6.csv",
+      "submission.csv",
+      "submission_v15_probe_middle05_mirror.csv",
+      "submission_imaad0946.csv",
+      "submission_v13_mirror_rare095.csv",
+      "submission_sed.csv",
+      "v31_imaad0946_v26_shared_blend_summary.json",
+      "submission_probe_middle_v12.csv",
+      "submission_protossm_baseline_replicate.csv",
+      "submission_v26_v23_fileconf_p010.csv"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "chaneyma/bc26-gate-v33-imaad0946-v26-shared-extcache-7030",
+    "lb": 0.946,
+    "files": [
+      "gate_baseline_replicate_blend_summary.json",
+      "submission_v23_temporal_lse_tau002_alpha020_r1_mirror.csv",
+      "submission_v26_v23_adaptive_a010_fileconf_p010.csv",
+      "submission_original_gate_v6_40x20_nosynth.csv",
+      "submission_sed_imaad.csv",
+      "submission_v13_mirror_rare090.csv",
+      "submission_protossm_v8_all66_synth.csv",
+      "submission_blend_original_gate_baseline60_v7_30_v6_10.csv",
+      "submission_original_gate_baseline_replicate.csv",
+      "submission_protossm_v6_40x20_nosynth.csv",
+      "submission_v13_rare090_only.csv",
+      "submission_probe_v2.csv",
+      "submission_protossm.csv",
+      "submission_v13_mirror_only.csv",
+      "submission_protossm_v7_all66_nosynth.csv",
+      "submission_original_gate_v7_all66_nosynth.csv",
+      "submission_v15_probe_middle10_mirror.csv",
+      "submission_residual_stage6.csv",
+      "submission.csv",
+      "submission_v15_probe_middle05_mirror.csv",
+      "submission_imaad0946.csv",
+      "submission_v13_mirror_rare095.csv",
+      "submission_sed.csv",
+      "v31_imaad0946_v26_shared_blend_summary.json",
+      "bc26-gate-v33-imaad0946-v26-shared-extcache-7030.log",
+      "submission_probe_middle_v12.csv",
+      "submission_protossm_baseline_replicate.csv",
+      "submission_v26_v23_fileconf_p010.csv"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "claudedevore/birdclef-2026-r0947-species-router-submit",
+    "lb": 0.947,
+    "files": [
+      "species_route_summary.csv",
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "branch_disagreement_top.csv",
+      "submission.csv",
+      "submission_sed.csv",
+      "birdclef-2026-r0947-species-router-submit.log",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "chaneyma/bc26-gate-v34-imaad0946-v26-shared-extcache-5050",
+    "lb": 0.946,
+    "files": [
+      "gate_baseline_replicate_blend_summary.json",
+      "submission_v23_temporal_lse_tau002_alpha020_r1_mirror.csv",
+      "submission_v26_v23_adaptive_a010_fileconf_p010.csv",
+      "submission_original_gate_v6_40x20_nosynth.csv",
+      "submission_sed_imaad.csv",
+      "submission_v13_mirror_rare090.csv",
+      "submission_protossm_v8_all66_synth.csv",
+      "submission_blend_original_gate_baseline60_v7_30_v6_10.csv",
+      "submission_original_gate_baseline_replicate.csv",
+      "submission_protossm_v6_40x20_nosynth.csv",
+      "bc26-gate-v34-imaad0946-v26-shared-extcache-5050.log",
+      "submission_v13_rare090_only.csv",
+      "submission_probe_v2.csv",
+      "submission_protossm.csv",
+      "submission_v13_mirror_only.csv",
+      "submission_protossm_v7_all66_nosynth.csv",
+      "submission_original_gate_v7_all66_nosynth.csv",
+      "submission_v15_probe_middle10_mirror.csv",
+      "submission_residual_stage6.csv",
+      "submission.csv",
+      "submission_v15_probe_middle05_mirror.csv",
+      "submission_imaad0946.csv",
+      "submission_v13_mirror_rare095.csv",
+      "submission_sed.csv",
+      "v31_imaad0946_v26_shared_blend_summary.json",
+      "submission_probe_middle_v12.csv",
+      "submission_protossm_baseline_replicate.csv",
+      "submission_v26_v23_fileconf_p010.csv"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-focal-v57",
+    "lb": 0.946,
+    "files": [
+      "bc2026-raunak0946-focal-v57.log",
+      "submission.csv"
+    ],
+    "has_oof": false
+  },
+  {
+    "ref": "kruzzcc/bc26-mtoshi-0947-birdnet",
+    "lb": 0.947,
+    "files": [
+      "submission_birdnet.csv",
+      "submission_protossm.csv",
+      "bc26-mtoshi-0947-birdnet.log",
+      "submission.csv",
+      "submission_sed.csv",
+      "perch_arrays.npz",
+      "perch_meta.parquet"
+    ],
+    "has_oof": true
+  },
+  {
+    "ref": "henryszy/bc2026-raunak0946-lean-v56",
+    "lb": 0.946,
+    "files": [
+      "submission.csv",
+      "bc2026-raunak0946-lean-v56.log"
+    ],
+    "has_oof": false
+  }
+]
