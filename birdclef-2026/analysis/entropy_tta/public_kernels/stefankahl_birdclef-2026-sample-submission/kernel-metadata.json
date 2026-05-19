@@ -1,0 +1,21 @@
+{
+  "id": "stefankahl/birdclef-2026-sample-submission",
+  "id_no": 111500748,
+  "title": "BirdCLEF+ 2026 Sample Submission",
+  "code_file": "birdclef-2026-sample-submission.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:221c8b519c4f2efa4e712ac0f2e85878a403ea4d523a2cedf8ebf60cf1136c45",
+  "machine_shape": "None"
+}

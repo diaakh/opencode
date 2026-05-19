@@ -1,0 +1,341 @@
+{
+  "internal_anchors": {
+    "exp019": {
+      "lb": 0.949,
+      "site_mean": 0.9545,
+      "gap": 0.0072,
+      "type": "ensemble_full"
+    },
+    "V73": {
+      "lb": 0.941,
+      "site_mean": 0.7833,
+      "gap": -0.1168,
+      "type": "mel_cnn"
+    },
+    "Bruce": {
+      "lb": 0.755,
+      "site_mean": 0.7747,
+      "gap": 0.0838,
+      "type": "linear_perch"
+    },
+    "slot6": {
+      "lb": 0.946,
+      "site_mean": 0.9546,
+      "gap": 0.0187,
+      "type": "exp019_birdmae"
+    },
+    "slot11": {
+      "lb": 0.949,
+      "site_mean": 0.9532,
+      "gap": 0.0086,
+      "type": "exp019_surgical"
+    }
+  },
+  "public_anchors": {
+    "imaadmahmood/birdclef-2026-perch-v2-protossm-0-925": {
+      "lb": 0.925,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "efficientnet",
+        "rag",
+        "mlp",
+        "lgb",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-934-s": {
+      "lb": 0.934,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "efficientnet",
+        "iter-pseudo",
+        "rag",
+        "mlp",
+        "lightgbm",
+        "lgb",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "chiranjithdharma/0-910-score": {
+      "lb": 0.91,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "sed",
+        "efficientnet",
+        "rag",
+        "gate"
+      ]
+    },
+    "mtoshidesu/birdclef-2026-0-947-lb-public-pipeline-reproduced": {
+      "lb": 0.947,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "mtoshidesu/0-932-test-mod-version-4": {
+      "lb": 0.932,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "youssefmo942009/lb-0-948": {
+      "lb": 0.948,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "yashanathaniel/birdclef-2026-perch-v2-0-908": {
+      "lb": 0.908,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "sed",
+        "rag",
+        "lgb",
+        "gate",
+        "ssm"
+      ]
+    },
+    "yaroslavkholmirzayev/0-946-replay-with-robust-inputs": {
+      "lb": 0.946,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "yashanathaniel/simplerun-perch-v2embedprobe-bayesian-0-912": {
+      "lb": 0.912,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "sed",
+        "rag",
+        "gate",
+        "ssm"
+      ]
+    },
+    "mattiaangeli/birdclef-2026-0-943-better-blend": {
+      "lb": 0.943,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "koushikrudra/0-928-winner-position": {
+      "lb": 0.928,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "lightgbm",
+        "lgb",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "safar1/lb-score-0-948": {
+      "lb": 0.948,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "yashanathaniel/perch-v2-starter-train-infer-mlp-0-905": {
+      "lb": 0.905,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "sed",
+        "rag",
+        "mlp",
+        "lightgbm",
+        "lgb",
+        "gate"
+      ]
+    },
+    "mtoshidesu/birdclef-2026-0-941-public-lb-onnx-perch-pr": {
+      "lb": 0.941,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "afr1ste/birdclef-2026-0-946-updated-perch-sed": {
+      "lb": 0.946,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-935-ft": {
+      "lb": 0.935,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "iter-pseudo",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "yashanathaniel/perch-v2-starter-train-infer-0-906": {
+      "lb": 0.906,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "sed",
+        "rag",
+        "mlp",
+        "lightgbm",
+        "lgb",
+        "gate"
+      ]
+    },
+    "needless090/birdclef-2026-perch-sed-lb-0-946-clap": {
+      "lb": 0.946,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "youssefmo942009/0-947-lb-improved": {
+      "lb": 0.947,
+      "arch": [
+        "perch_v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    },
+    "marynaborovska/birdclef-26-protossm-v5-resboosting-0-927-lb": {
+      "lb": 0.927,
+      "arch": [
+        "perch_v2",
+        "perch v2",
+        "protossm",
+        "proto_ssm",
+        "sed",
+        "rag",
+        "mlp",
+        "lightgbm",
+        "lgb",
+        "gate",
+        "ensemble",
+        "ssm",
+        "distill"
+      ]
+    }
+  }
+}
