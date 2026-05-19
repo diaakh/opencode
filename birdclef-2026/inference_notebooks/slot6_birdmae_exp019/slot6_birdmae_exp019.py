@@ -8346,51 +8346,66 @@ else:
     _NO_TEST_FILES = False
 
 if not _NO_TEST_FILES:
-    print(f"\nProcessing {len(test_files)} files...")
+    print(f"\nProcessing {len(test_files)} files (cross-file batched + parallel I/O)...")
     ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
     all_rows = []
     all_preds = []
     t0 = time.time()
+    BATCH_FILES = 4
+    from concurrent.futures import ThreadPoolExecutor
+
+    bi_arr = np.array(list(birdmae_to_bc.keys()), dtype=np.int32)
+    ci_arr = np.array(list(birdmae_to_bc.values()), dtype=np.int32)
+
+    def _load_file(fpath):
+        try:
+            audio, sr = sf.read(str(fpath))
+            if audio.ndim > 1: audio = audio.mean(axis=1)
+            audio = audio.astype(np.float32)
+        except Exception:
+            return fpath.stem, None
+        wins = np.zeros((N_WIN, WIN_SAMP), dtype=np.float32)
+        for w in range(N_WIN):
+            s = w * WIN_SAMP; e = s + WIN_SAMP
+            if e <= len(audio):
+                wins[w] = audio[s:e]
+            else:
+                avail = max(0, len(audio) - s)
+                if avail > 0: wins[w, :avail] = audio[s:s+avail]
+        return fpath.stem, wins
+
+    pool = ThreadPoolExecutor(max_workers=BATCH_FILES)
+    next_futures = [pool.submit(_load_file, p) for p in test_files[:BATCH_FILES]]
 
     with torch.no_grad():
-        for fi, fpath in enumerate(test_files):
-            try:
-                audio, sr = sf.read(str(fpath))
-                if audio.ndim > 1: audio = audio.mean(axis=1)
-                audio = audio.astype(np.float32)
-                # 12 × 5s windows
-                wins = []
+        for start in range(0, len(test_files), BATCH_FILES):
+            batch = [f.result() for f in next_futures]
+            next_start = start + BATCH_FILES
+            if next_start < len(test_files):
+                next_futures = [pool.submit(_load_file, p) for p in test_files[next_start:next_start + BATCH_FILES]]
+            batch_wins, batch_stems = [], []
+            for stem, w in batch:
+                if w is None: w = np.zeros((N_WIN, WIN_SAMP), dtype=np.float32)
+                batch_wins.append(w); batch_stems.append(stem)
+            if not batch_wins: continue
+            wave_batch = np.concatenate(batch_wins, axis=0)
+            specs = compute_fbank_batch(wave_batch).to(device)
+            logits = model(specs)
+            probs = torch.sigmoid(logits).cpu().numpy()
+            bn = len(batch_stems)
+            bc_preds = np.zeros((bn * N_WIN, 234), dtype=np.float32)
+            bc_preds[:, ci_arr] = probs[:, bi_arr]
+            for bi, stem in enumerate(batch_stems):
                 for w in range(N_WIN):
-                    s_samp = w * WIN_SAMP
-                    e_samp = s_samp + WIN_SAMP
-                    if e_samp <= len(audio):
-                        clip = audio[s_samp:e_samp]
-                    else:
-                        clip = np.zeros(WIN_SAMP, dtype=np.float32)
-                        avail = max(0, len(audio) - s_samp)
-                        if avail > 0: clip[:avail] = audio[s_samp:s_samp+avail]
-                    wins.append(clip)
-                specs = compute_fbank_batch(wins).to(device)
-                logits = model(specs)
-                probs = torch.sigmoid(logits).cpu().numpy()
-                # Map BirdMAE preds → BC2026 columns
-                bc_preds = np.zeros((N_WIN, 234), dtype=np.float32)
-                for bi, ci in birdmae_to_bc.items():
-                    bc_preds[:, ci] = probs[:, bi]
-                stem = fpath.stem
-                for w in range(N_WIN):
-                    end_sec = (w + 1) * 5
-                    all_rows.append(f"{stem}_{end_sec}")
-                    all_preds.append(bc_preds[w])
-            except Exception as e:
-                print(f"  fail {fpath.name}: {e}")
-                continue
-            if (fi + 1) % 25 == 0 or fi == len(test_files) - 1:
+                    all_rows.append(f"{stem}_{(w+1)*5}")
+                    all_preds.append(bc_preds[bi * N_WIN + w])
+            done = start + bn
+            if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
                 el = time.time() - t0
-                rate = (fi + 1) / el
-                eta = (len(test_files) - fi - 1) / max(rate, 0.01)
-                print(f"  [{fi+1}/{len(test_files)}] {el:.0f}s rate={rate:.2f}/s eta={eta:.0f}s")
-
+                rate = done / el
+                eta = (len(test_files) - done) / max(rate, 0.01)
+                print(f"  [{done}/{len(test_files)}] {el:.0f}s rate={rate:.2f}files/s eta={eta:.0f}s")
+    pool.shutdown()
     print(f"\nTotal: {time.time()-t0:.0f}s")
     P = np.array(all_preds, dtype=np.float32)
     print(f"P shape: {P.shape}")
