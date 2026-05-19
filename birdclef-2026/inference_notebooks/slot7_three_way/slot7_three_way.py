@@ -8349,51 +8349,84 @@ else:
     _BM_NO_TEST = False
 
 if not _BM_NO_TEST:
-    print(f"\nProcessing {len(test_files)} files...")
+    print(f"\nProcessing {len(test_files)} files (cross-file batched, parallel I/O)...")
     ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
     all_rows = []
     all_preds = []
     t0 = time.time()
+    BATCH_FILES = 4  # 4 files × 12 windows = 48 windows per ViT-B forward pass
+    from concurrent.futures import ThreadPoolExecutor
+
+    # Pre-build BirdMAE-to-BC2026 mapping arrays for vectorized scatter
+    bi_arr = np.array(list(birdmae_to_bc.keys()), dtype=np.int32)
+    ci_arr = np.array(list(birdmae_to_bc.values()), dtype=np.int32)
+
+    def load_file_windows(fpath):
+        """Return (stem, np.ndarray (12, WIN_SAMP)) or (stem, None) on failure."""
+        try:
+            audio, sr = sf.read(str(fpath))
+            if audio.ndim > 1: audio = audio.mean(axis=1)
+            audio = audio.astype(np.float32)
+        except Exception:
+            return fpath.stem, None
+        wins = np.zeros((N_WIN, WIN_SAMP), dtype=np.float32)
+        for w in range(N_WIN):
+            s_samp = w * WIN_SAMP
+            e_samp = s_samp + WIN_SAMP
+            if e_samp <= len(audio):
+                wins[w] = audio[s_samp:e_samp]
+            else:
+                avail = max(0, len(audio) - s_samp)
+                if avail > 0:
+                    wins[w, :avail] = audio[s_samp:s_samp+avail]
+        return fpath.stem, wins
+
+    # ThreadPool prefetches next batch's audio while current batch is on the model
+    pool = ThreadPoolExecutor(max_workers=BATCH_FILES)
+    next_futures = [pool.submit(load_file_windows, p) for p in test_files[:BATCH_FILES]]
 
     with torch.no_grad():
-        for fi, fpath in enumerate(test_files):
-            try:
-                audio, sr = sf.read(str(fpath))
-                if audio.ndim > 1: audio = audio.mean(axis=1)
-                audio = audio.astype(np.float32)
-                # 12 × 5s windows
-                wins = []
-                for w in range(N_WIN):
-                    s_samp = w * WIN_SAMP
-                    e_samp = s_samp + WIN_SAMP
-                    if e_samp <= len(audio):
-                        clip = audio[s_samp:e_samp]
-                    else:
-                        clip = np.zeros(WIN_SAMP, dtype=np.float32)
-                        avail = max(0, len(audio) - s_samp)
-                        if avail > 0: clip[:avail] = audio[s_samp:s_samp+avail]
-                    wins.append(clip)
-                specs = compute_fbank_batch(wins).to(device)
-                logits = model(specs)
-                probs = torch.sigmoid(logits).cpu().numpy()
-                # Map BirdMAE preds → BC2026 columns
-                bc_preds = np.zeros((N_WIN, 234), dtype=np.float32)
-                for bi, ci in birdmae_to_bc.items():
-                    bc_preds[:, ci] = probs[:, bi]
-                stem = fpath.stem
+        for start in range(0, len(test_files), BATCH_FILES):
+            # Wait for current batch's I/O
+            batch_results = [f.result() for f in next_futures]
+            # Prefetch next batch
+            next_start = start + BATCH_FILES
+            if next_start < len(test_files):
+                next_futures = [pool.submit(load_file_windows, p) for p in test_files[next_start:next_start + BATCH_FILES]]
+            # Stack all windows from this batch
+            batch_wins = []
+            batch_stems = []
+            for stem, wins in batch_results:
+                if wins is None:
+                    print(f"  fail {stem}: load error, using zeros")
+                    wins = np.zeros((N_WIN, WIN_SAMP), dtype=np.float32)
+                batch_wins.append(wins)
+                batch_stems.append(stem)
+            if not batch_wins: continue
+            # Concatenate to (bn * N_WIN, WIN_SAMP)
+            wave_batch = np.concatenate(batch_wins, axis=0)
+            # Compute fbank for whole batch at once
+            specs = compute_fbank_batch(wave_batch).to(device)
+            # Forward
+            logits = model(specs)
+            probs = torch.sigmoid(logits).cpu().numpy()
+            # Vectorized mapping: bn * N_WIN rows, fill BC2026 columns
+            bn = len(batch_stems)
+            bc_preds = np.zeros((bn * N_WIN, 234), dtype=np.float32)
+            bc_preds[:, ci_arr] = probs[:, bi_arr]
+            # Emit rows
+            for bi, stem in enumerate(batch_stems):
                 for w in range(N_WIN):
                     end_sec = (w + 1) * 5
                     all_rows.append(f"{stem}_{end_sec}")
-                    all_preds.append(bc_preds[w])
-            except Exception as e:
-                print(f"  fail {fpath.name}: {e}")
-                continue
-            if (fi + 1) % 25 == 0 or fi == len(test_files) - 1:
+                    all_preds.append(bc_preds[bi * N_WIN + w])
+            done = start + bn
+            if done % (BATCH_FILES * 5) == 0 or done == len(test_files):
                 el = time.time() - t0
-                rate = (fi + 1) / el
-                eta = (len(test_files) - fi - 1) / max(rate, 0.01)
-                print(f"  [{fi+1}/{len(test_files)}] {el:.0f}s rate={rate:.2f}/s eta={eta:.0f}s")
-
+                rate = done / el
+                eta = (len(test_files) - done) / max(rate, 0.01)
+                print(f"  [{done}/{len(test_files)}] {el:.0f}s rate={rate:.2f}files/s eta={eta:.0f}s")
+    pool.shutdown()
     print(f"\nTotal: {time.time()-t0:.0f}s")
     P = np.array(all_preds, dtype=np.float32)
     print(f"P shape: {P.shape}")
