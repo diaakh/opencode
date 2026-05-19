@@ -8354,7 +8354,7 @@ if not _BM_NO_TEST:
     all_rows = []
     all_preds = []
     t0 = time.time()
-    BATCH_FILES = 8  # 8 files × 12 windows = 96 windows per ViT-B forward pass
+    BATCH_FILES = 4  # 4 files × 12 windows = 48 windows (measured optimal on 4-core CPU)
     from concurrent.futures import ThreadPoolExecutor
 
     # Pre-build BirdMAE-to-BC2026 mapping arrays for vectorized scatter
