@@ -40,6 +40,8 @@ def build_default_argv() -> list[str]:
         value = os.environ.get(env_name)
         if value:
             argv.extend([flag, value])
+    if os.environ.get("G124_TIMM_PRETRAINED", "").lower() in {"1", "true", "yes"}:
+        argv.append("--timm-pretrained")
     return argv
 
 

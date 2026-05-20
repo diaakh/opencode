@@ -23,7 +23,7 @@ EfficientNetV2-S
 ```
 
 If a 2025 checkpoint is not available yet, `train_g124.py` can still train from the timm EfficientNetV2-S pretrained weights. That is a G124-like fallback, not true `2025pre`.
-Because the Kaggle kernel is configured with internet disabled, attach a checkpoint dataset for true `2025pre`. Only use `--timm-pretrained` when the weights are already cached or internet is enabled.
+The training kernel is configured with internet enabled so it can download timm weights for experiments. The final packaged competition inference asset must remain offline-safe: package `infer.py` plus `g124_fold1_fp16.pt` into a Kaggle dataset and attach that dataset to the final submission notebook with internet disabled.
 
 ## Train On Kaggle
 
@@ -52,16 +52,10 @@ python train_g124.py \
 Smoke test with a small file cap:
 
 ```bash
-python train_g124.py \
-  --competition-dir /kaggle/input/competitions/birdclef-2026 \
-  --output-dir /kaggle/working/g124_smoke \
-  --stage finetune2026 \
-  --fold 1 \
-  --epochs 1 \
-  --max-train-files 2 \
-  --batch-size 8 \
-  --num-workers 2
+python run_kaggle_smoke.py
 ```
+
+The smoke runner uses one epoch, two files per class, small batches, and `--timm-pretrained`; it is intended to verify Kaggle infrastructure and dependency downloads before the full run.
 
 ## Package Dataset
 

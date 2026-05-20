@@ -16,6 +16,7 @@ from g124_assets import (
 from infer import build_parser
 from package_assets import build_dataset_metadata
 from run_kaggle_train import build_default_argv
+from run_kaggle_smoke import build_smoke_argv
 from train_g124 import build_parser as build_train_parser
 from train_g124 import parse_soundscape_row_id
 
@@ -204,3 +205,21 @@ def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):
     assert "3" in argv
     assert "--pseudo-csv" in argv
     assert "/kaggle/input/pseudo/pseudo.csv" in argv
+
+
+def test_run_kaggle_train_can_enable_timm_pretrained(monkeypatch):
+    monkeypatch.setenv("G124_TIMM_PRETRAINED", "1")
+
+    argv = build_default_argv()
+
+    assert "--timm-pretrained" in argv
+
+
+def test_run_kaggle_smoke_uses_small_limits():
+    argv = build_smoke_argv()
+
+    assert "--epochs" in argv
+    assert "1" in argv
+    assert "--max-train-files" in argv
+    assert "2" in argv
+    assert "--timm-pretrained" in argv
