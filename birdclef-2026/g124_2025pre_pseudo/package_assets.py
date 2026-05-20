@@ -38,7 +38,7 @@ def package_assets(args: argparse.Namespace) -> Path:
     shutil.copy2(infer_py, output_dir / "infer.py")
     shutil.copy2(checkpoint, output_dir / "g124_fold1_fp16.pt")
     metadata = build_dataset_metadata(args.dataset_id, args.title)
-    (output_dir / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (output_dir / "datasets-metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     return output_dir
 
 

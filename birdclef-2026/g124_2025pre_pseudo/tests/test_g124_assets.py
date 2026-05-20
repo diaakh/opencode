@@ -15,8 +15,11 @@ from g124_assets import (
 )
 from infer import build_parser
 from package_assets import build_dataset_metadata
+from package_assets import build_parser as build_package_parser
+from package_assets import package_assets
 from run_kaggle_train import build_default_argv
 from run_kaggle_smoke import build_smoke_argv
+from kaggle_launcher import find_code_root
 from train_g124 import build_parser as build_train_parser
 from train_g124 import parse_soundscape_row_id
 
@@ -185,6 +188,32 @@ def test_build_dataset_metadata_uses_kaggle_dataset_id():
     assert meta["licenses"] == [{"name": "CC0-1.0"}]
 
 
+def test_package_assets_writes_kaggle_metadata_filename(tmp_path):
+    ckpt = tmp_path / "checkpoint.pt"
+    ckpt.write_bytes(b"checkpoint")
+    infer = tmp_path / "infer.py"
+    infer.write_text("print('infer')\n")
+    out = tmp_path / "out"
+    args = build_package_parser().parse_args(
+        [
+            "--checkpoint",
+            str(ckpt),
+            "--output-dir",
+            str(out),
+            "--dataset-id",
+            "adkasd/birdclef2026-g124-effv2s-2025pre-pseudo-assets",
+            "--infer-py",
+            str(infer),
+        ]
+    )
+
+    package_assets(args)
+
+    assert (out / "datasets-metadata.json").exists()
+    assert (out / "infer.py").exists()
+    assert (out / "g124_fold1_fp16.pt").exists()
+
+
 def test_parse_soundscape_row_id_recovers_filename_and_start():
     filename, start = parse_soundscape_row_id("BC2026_Train_0001_S08_20250606_030007_35")
 
@@ -223,3 +252,11 @@ def test_run_kaggle_smoke_uses_small_limits():
     assert "--max-train-files" in argv
     assert "2" in argv
     assert "--timm-pretrained" in argv
+
+
+def test_kaggle_launcher_finds_code_dataset_root(tmp_path):
+    root = tmp_path / "birdclef-g124-code"
+    root.mkdir()
+    (root / "train_g124.py").write_text("print('ok')\n")
+
+    assert find_code_root([tmp_path]) == root
