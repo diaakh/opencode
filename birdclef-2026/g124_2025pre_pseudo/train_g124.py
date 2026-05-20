@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model-name", default="tf_efficientnetv2_s.in21ft1k")
     parser.add_argument("--epochs", type=int, default=8)
     parser.add_argument("--batch-size", type=int, default=48)
-    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=124)
@@ -36,7 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fmax", type=float, default=16000.0)
     parser.add_argument("--pseudo-weight", type=float, default=0.35)
     parser.add_argument("--max-train-files", type=int, default=None)
-    parser.add_argument("--amp", action="store_true", default=True)
+    parser.add_argument("--amp", action="store_true", default=False)
+    parser.add_argument("--grad-clip", type=float, default=1.0)
     parser.add_argument("--timm-pretrained", action="store_true", help="Allow timm pretrained weight loading when internet/cache is available")
     return parser
 
@@ -181,7 +182,8 @@ class AudioDataset:
             import librosa
 
             audio = librosa.resample(audio, orig_sr=sr, target_sr=self.args.sr).astype(np.float32)
-        return audio.astype(np.float32, copy=False)
+        audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+        return np.clip(audio.astype(np.float32, copy=False), -1.0, 1.0)
 
     def __getitem__(self, idx):
         row = self.frame.iloc[idx]
@@ -199,12 +201,16 @@ class AudioDataset:
             clip[: len(audio)] = audio
         if "target" in row and isinstance(row.get("target"), np.ndarray):
             target = row["target"].astype(np.float32)
+            target = np.nan_to_num(target, nan=0.0, posinf=1.0, neginf=0.0)
+            target = np.clip(target, 0.0, 1.0)
         else:
             target = np.zeros(len(self.classes), dtype=np.float32)
             label = str(row["primary_label"])
             if label in self.class_to_idx:
                 target[self.class_to_idx[label]] = 1.0
         weight = float(row.get("sample_weight", 1.0))
+        if not np.isfinite(weight):
+            weight = 1.0
         return clip, target, weight
 
 
@@ -232,6 +238,9 @@ class MelFrontend:
         ).to(device)
 
     def __call__(self, wave):
+        import torch
+
+        wave = torch.nan_to_num(wave.float(), nan=0.0, posinf=0.0, neginf=0.0)
         wave = wave - wave.mean(dim=1, keepdim=True)
         mel = self.mel(wave)
         mel = mel.clamp_min(1e-6).log()
@@ -354,19 +363,33 @@ def train(args: argparse.Namespace) -> Path:
         t0 = time.time()
         model.train()
         train_losses = []
+        optimizer_steps = 0
         for wave, target, weight in train_loader:
             wave = wave.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             weight = weight.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
+            x = frontend(wave).to(memory_format=torch.channels_last)
+            if not torch.isfinite(x).all():
+                raise FloatingPointError("non-finite mel features detected")
             with torch.autocast(device_type=device.type, enabled=args.amp and device.type == "cuda"):
-                x = frontend(wave).to(memory_format=torch.channels_last)
                 logits = model(x)
                 raw_loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, target, reduction="none")
                 loss = (raw_loss.mean(dim=1) * weight).mean()
+            if not torch.isfinite(loss):
+                raise FloatingPointError(
+                    f"non-finite train loss at epoch={epoch + 1}; "
+                    f"logits finite={bool(torch.isfinite(logits).all())} "
+                    f"target range=({float(target.min()):.4g}, {float(target.max()):.4g}) "
+                    f"wave range=({float(wave.min()):.4g}, {float(wave.max()):.4g})"
+                )
             scaler.scale(loss).backward()
+            if args.grad_clip > 0:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             scaler.step(optimizer)
             scaler.update()
+            optimizer_steps += 1
             train_losses.append(float(loss.detach().cpu()))
 
         model.eval()
@@ -377,8 +400,15 @@ def train(args: argparse.Namespace) -> Path:
                 target = target.to(device, non_blocking=True)
                 x = frontend(wave).to(memory_format=torch.channels_last)
                 logits = model(x)
-                val_losses.append(float(loss_fn(logits, target).detach().cpu()))
-        scheduler.step()
+                val_loss_batch = loss_fn(logits, target)
+                if not torch.isfinite(val_loss_batch):
+                    raise FloatingPointError(
+                        f"non-finite validation loss at epoch={epoch + 1}; "
+                        f"logits finite={bool(torch.isfinite(logits).all())}"
+                    )
+                val_losses.append(float(val_loss_batch.detach().cpu()))
+        if optimizer_steps > 0:
+            scheduler.step()
         train_loss = float(np.mean(train_losses)) if train_losses else float("nan")
         val_loss = float(np.mean(val_losses)) if val_losses else float("nan")
         print(f"epoch={epoch + 1}/{args.epochs} train_loss={train_loss:.5f} val_loss={val_loss:.5f} time={time.time() - t0:.1f}s")
