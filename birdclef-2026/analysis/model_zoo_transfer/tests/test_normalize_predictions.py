@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, str(Path("birdclef-2026/analysis/model_zoo_transfer").resolve()))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from normalize_predictions import NormalizedPrediction
 
