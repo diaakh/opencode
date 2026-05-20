@@ -6,7 +6,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from registry import ModelArtifact
-from normalize_predictions import LabelBackbone, NormalizedPrediction, load_internal_npz, load_public_cache_csv
+from normalize_predictions import LabelBackbone, NormalizedPrediction, load_internal_npz, load_prediction, load_public_cache_csv
 
 
 def test_normalized_prediction_records_coverage_counts():
@@ -65,3 +65,18 @@ def test_load_public_cache_csv_reindexes_to_backbone(tmp_path):
     pred = load_public_cache_csv(item, backbone)
 
     assert pred.predictions.tolist() == [[0.1, 0.9], [0.8, 0.2]]
+
+
+def test_load_prediction_skips_public_cache_csv_with_no_matching_rows(tmp_path):
+    cache = tmp_path / "submission.csv"
+    cache.write_text("row_id,a,b\nother_5,0.8,0.2\n")
+    backbone = LabelBackbone(
+        row_ids=np.array(["f1_5", "f2_10"]),
+        classes=np.array(["a", "b"]),
+        labels=np.array([[1, 0], [0, 1]], dtype=np.float32),
+        filenames=np.array(["f1.ogg", "f2.ogg"]),
+        start_seconds=np.array([0, 5]),
+    )
+    item = ModelArtifact("public_toy", "public", "public_cache", cache, None, 0.947, "labeled")
+
+    assert load_prediction(item, backbone) is None

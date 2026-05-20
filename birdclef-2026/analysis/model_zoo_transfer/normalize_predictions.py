@@ -117,5 +117,8 @@ def load_prediction(item, backbone: LabelBackbone) -> NormalizedPrediction | Non
     if item.source == "ours":
         return load_internal_npz(item, backbone)
     if item.artifact_path.suffix == ".csv":
-        return load_public_cache_csv(item, backbone)
+        try:
+            return load_public_cache_csv(item, backbone)
+        except ValueError:
+            return None
     return None
