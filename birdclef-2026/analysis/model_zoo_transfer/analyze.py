@@ -122,7 +122,7 @@ def _leave_one_out(df: pd.DataFrame) -> pd.DataFrame:
 def _write_report(df: pd.DataFrame, corr: pd.DataFrame, loo: pd.DataFrame, path: Path) -> None:
     known_lb = df[df["known_lb"].notna()]
     known_lb_table = known_lb[
-        ["model_id", "category", "known_lb", "labeled_macro_auc", "site_gap", "risk_tier"]
+        ["model_id", "category", "coverage", "known_lb", "labeled_macro_auc", "site_gap", "risk_tier"]
     ].sort_values("known_lb", ascending=False)
     loo_table = loo.sort_values("absolute_error", ascending=False) if not loo.empty else loo
 
@@ -170,6 +170,7 @@ def main() -> None:
     parser.add_argument("--root", default="birdclef-2026")
     parser.add_argument("--out-dir", default="birdclef-2026/analysis/model_zoo_transfer")
     parser.add_argument("--public-output-root", default=None)
+    parser.add_argument("--public-meta-template", default=None)
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -178,8 +179,9 @@ def main() -> None:
 
     backbone = load_label_backbone(root / "analysis" / "entropy_tta" / "exp019_aligned.npz")
     public_output_root = Path(args.public_output_root) if args.public_output_root else None
+    public_meta_template = Path(args.public_meta_template) if args.public_meta_template else None
     registry = default_registry(root, public_output_root=public_output_root)
-    loaded = [load_prediction(item, backbone) for item in registry]
+    loaded = [load_prediction(item, backbone, public_meta_template=public_meta_template) for item in registry]
     predictions = [item for item in loaded if item is not None]
 
     anchors = {}

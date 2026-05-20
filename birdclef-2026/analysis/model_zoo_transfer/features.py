@@ -137,7 +137,7 @@ def compute_feature_row(pred, backbone, anchors: dict[str, np.ndarray]) -> dict[
         "category": pred.category,
         "known_lb": pred.known_lb,
         "coverage": pred.coverage,
-        "coverage_labeled_rows": pred.n_rows if pred.coverage in {"labeled", "both"} else 0,
+        "coverage_labeled_rows": pred.n_rows if pred.coverage.startswith("labeled") or pred.coverage == "both" else 0,
         "coverage_unlabeled_rows": pred.n_rows if pred.coverage == "unlabeled" else 0,
         "coverage_classes": pred.n_classes,
         "n_sites": int(len(set(sites))),

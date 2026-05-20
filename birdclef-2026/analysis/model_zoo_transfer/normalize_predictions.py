@@ -153,10 +153,16 @@ def _public_score_array(data: np.lib.npyio.NpzFile, prediction_key: str | None) 
     raise ValueError("cache does not contain a supported score array")
 
 
-def load_public_perch_npz(item, backbone: LabelBackbone) -> NormalizedPrediction:
+def load_public_perch_npz(
+    item,
+    backbone: LabelBackbone,
+    public_meta_template: Path | None = None,
+) -> NormalizedPrediction:
     meta_path = _paired_meta_path(item.artifact_path)
     if meta_path is None:
-        raise ValueError(f"{item.artifact_path} has no paired metadata parquet")
+        if public_meta_template is None or not public_meta_template.exists():
+            raise ValueError(f"{item.artifact_path} has no paired metadata parquet")
+        meta_path = public_meta_template
 
     data = np.load(item.artifact_path, allow_pickle=True)
     scores = _public_score_array(data, item.prediction_key)
@@ -192,12 +198,16 @@ def load_public_perch_npz(item, backbone: LabelBackbone) -> NormalizedPrediction
         source=item.source,
         category=item.category,
         known_lb=item.known_lb,
-        coverage=item.coverage,
+        coverage=item.coverage if _paired_meta_path(item.artifact_path) is not None else f"{item.coverage}_assumed_order",
         artifact_path=str(item.artifact_path),
     )
 
 
-def load_prediction(item, backbone: LabelBackbone) -> NormalizedPrediction | None:
+def load_prediction(
+    item,
+    backbone: LabelBackbone,
+    public_meta_template: Path | None = None,
+) -> NormalizedPrediction | None:
     if item.source == "ours":
         return load_internal_npz(item, backbone)
     if item.artifact_path.suffix == ".csv":
@@ -207,7 +217,7 @@ def load_prediction(item, backbone: LabelBackbone) -> NormalizedPrediction | Non
             return None
     if item.artifact_path.suffix == ".npz":
         try:
-            return load_public_perch_npz(item, backbone)
+            return load_public_perch_npz(item, backbone, public_meta_template=public_meta_template)
         except ValueError:
             return None
     return None

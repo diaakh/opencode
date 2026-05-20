@@ -15,6 +15,14 @@ python3 birdclef-2026/analysis/model_zoo_transfer/analyze.py \
   --public-output-root /tmp/birdclef_public_outputs
 ```
 
+Some public `full_oof_meta_features.npz` outputs omit row metadata. You can opt into a known 708-row train-soundscape metadata template when you have verified the cache family uses the same row order:
+
+```bash
+python3 birdclef-2026/analysis/model_zoo_transfer/analyze.py \
+  --public-output-root /tmp/birdclef_public_outputs \
+  --public-meta-template /tmp/birdclef_public_outputs/yaroslavkholmirzayev__v6-0949-replay/perch_cache/full_perch_meta.parquet
+```
+
 Outputs:
 
 - `model_zoo_features.csv`

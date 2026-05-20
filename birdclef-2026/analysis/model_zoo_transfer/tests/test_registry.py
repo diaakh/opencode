@@ -40,6 +40,7 @@ def test_registry_keeps_only_public_entries_with_oof(tmp_path):
     assert len(public_items) == 1
     assert public_items[0].notebook_slug == "author/kept-notebook"
     assert public_items[0].model_id == "public__author__kept-notebook"
+    assert public_items[0].category == "public_submission"
     assert public_items[0].known_lb == 0.912
     assert public_items[0].artifact_path == kept_kernel / "submission.csv"
 
@@ -71,6 +72,7 @@ def test_registry_finds_public_cache_in_external_output_root(tmp_path):
 
     assert len(public_items) == 1
     assert public_items[0].model_id == "public__author__kept-notebook__perch_arrays"
+    assert public_items[0].category == "public_perch_cache"
     assert public_items[0].artifact_path == artifact
 
 
@@ -100,6 +102,7 @@ def test_registry_splits_full_oof_cache_keys(tmp_path):
     public_items = [item for item in registry if item.source == "public"]
 
     assert [item.prediction_key for item in public_items] == ["oof_base", "oof_prior"]
+    assert [item.category for item in public_items] == ["public_final_oof", "public_final_oof"]
     assert [item.model_id for item in public_items] == [
         "public__author__oof-notebook__full_oof_meta_features__oof_base",
         "public__author__oof-notebook__full_oof_meta_features__oof_prior",

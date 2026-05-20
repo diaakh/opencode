@@ -181,3 +181,29 @@ def test_load_public_oof_npz_uses_requested_prediction_key(tmp_path):
     pred = load_public_perch_npz(item, backbone)
 
     assert np.allclose(pred.predictions, [[0.5, 0.6], [0.7, 0.8]])
+
+
+def test_load_public_oof_npz_can_use_explicit_meta_template(tmp_path):
+    cache = tmp_path / "full_oof_meta_features.npz"
+    np.savez(
+        cache,
+        oof_base=np.array([[0.1, 0.2], [0.3, 0.4]], dtype=np.float32),
+    )
+    import pandas as pd
+
+    template = tmp_path / "template.parquet"
+    pd.DataFrame({"row_id": ["f2_10", "f1_5"]}).to_parquet(template)
+    backbone = LabelBackbone(
+        row_ids=np.array(["f1_5", "f2_10"]),
+        classes=np.array(["a", "b"]),
+        labels=np.array([[1, 0], [0, 1]], dtype=np.float32),
+        filenames=np.array(["f1.ogg", "f2.ogg"]),
+        start_seconds=np.array([0, 5]),
+    )
+    item = ModelArtifact("public_oof_base", "public", "public_cache", cache, "oof_base", 0.922, "labeled")
+
+    pred = load_public_perch_npz(item, backbone, public_meta_template=template)
+
+    assert pred.coverage == "labeled_assumed_order"
+    assert pred.row_ids.tolist() == ["f1_5", "f2_10"]
+    assert np.allclose(pred.predictions, [[0.3, 0.4], [0.1, 0.2]])

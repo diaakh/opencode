@@ -70,7 +70,7 @@ def _public_registry(root: Path, public_output_root: Path | None = None) -> list
                     ModelArtifact(
                         model_id=model_id,
                         source="public",
-                        category="public_cache",
+                        category=_public_category(file_stem),
                         artifact_path=artifact_path,
                         prediction_key=prediction_key,
                         known_lb=float(entry["lb"]) if entry.get("lb") is not None else None,
@@ -80,6 +80,16 @@ def _public_registry(root: Path, public_output_root: Path | None = None) -> list
                     )
                 )
     return items
+
+
+def _public_category(file_stem: str) -> str:
+    if file_stem == "full_oof_meta_features":
+        return "public_final_oof"
+    if "perch_arrays" in file_stem:
+        return "public_perch_cache"
+    if file_stem.startswith("submission"):
+        return "public_submission"
+    return "public_cache"
 
 
 def _find_public_kernel_dir(public_root: Path, ref: str, public_output_root: Path | None = None) -> Path | None:

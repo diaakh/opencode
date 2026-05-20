@@ -6,6 +6,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analyze import _leave_one_out
+from features import compute_feature_row
+from normalize_predictions import LabelBackbone, NormalizedPrediction
 
 
 def test_leave_one_out_uses_nearest_known_lb_model():
@@ -41,3 +43,28 @@ def test_leave_one_out_returns_empty_schema_without_enough_known_lb():
         "nearest_model",
         "usable_features",
     ]
+
+
+def test_assumed_order_labeled_coverage_counts_as_labeled_rows():
+    backbone = LabelBackbone(
+        row_ids=pd.Series(["f1_5", "f2_10"]).to_numpy(),
+        classes=pd.Series(["a", "b"]).to_numpy(),
+        labels=pd.DataFrame([[1, 0], [0, 1]]).to_numpy(dtype="float32"),
+        filenames=pd.Series(["f1.ogg", "f2.ogg"]).to_numpy(),
+        start_seconds=pd.Series([0, 5]).to_numpy(),
+    )
+    pred = NormalizedPrediction(
+        model_id="assumed",
+        row_ids=backbone.row_ids,
+        classes=backbone.classes,
+        predictions=pd.DataFrame([[0.9, 0.1], [0.2, 0.8]]).to_numpy(dtype="float32"),
+        source="public",
+        category="public_cache",
+        known_lb=0.9,
+        coverage="labeled_assumed_order",
+        artifact_path="x.npz",
+    )
+
+    row = compute_feature_row(pred, backbone, {})
+
+    assert row["coverage_labeled_rows"] == 2
