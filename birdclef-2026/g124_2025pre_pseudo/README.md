@@ -23,6 +23,7 @@ EfficientNetV2-S
 ```
 
 If a 2025 checkpoint is not available yet, `train_g124.py` can still train from the timm EfficientNetV2-S pretrained weights. That is a G124-like fallback, not true `2025pre`.
+Because the Kaggle kernel is configured with internet disabled, attach a checkpoint dataset for true `2025pre`. Only use `--timm-pretrained` when the weights are already cached or internet is enabled.
 
 ## Train On Kaggle
 
@@ -114,4 +115,3 @@ python infer.py \
 - Mel extraction is batched with `torchaudio` on the selected device.
 - Training uses AMP, `channels_last`, `AdamW`, cosine LR, pinned memory, and persistent dataloader workers.
 - Pseudo labels are weighted soft-label examples, so they help without overwhelming focal audio.
-

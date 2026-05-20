@@ -37,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pseudo-weight", type=float, default=0.35)
     parser.add_argument("--max-train-files", type=int, default=None)
     parser.add_argument("--amp", action="store_true", default=True)
+    parser.add_argument("--timm-pretrained", action="store_true", help="Allow timm pretrained weight loading when internet/cache is available")
     return parser
 
 
@@ -213,11 +214,18 @@ class MelFrontend:
         return ((mel - mean) / std).unsqueeze(1)
 
 
-def build_model(model_name: str, num_classes: int, pretrained_checkpoint: str | None = None):
+def build_model(
+    model_name: str,
+    num_classes: int,
+    pretrained_checkpoint: str | None = None,
+    timm_pretrained: bool = False,
+):
     import timm
     import torch
 
-    model = timm.create_model(model_name, pretrained=pretrained_checkpoint is None, in_chans=1, num_classes=num_classes)
+    model = timm.create_model(model_name, pretrained=timm_pretrained and pretrained_checkpoint is None, in_chans=1, num_classes=num_classes)
+    if pretrained_checkpoint is None:
+        print("No 2025pre checkpoint supplied; training starts from random classifier/backbone weights.")
     if pretrained_checkpoint:
         ckpt = torch.load(pretrained_checkpoint, map_location="cpu")
         state = ckpt.get("state_dict", ckpt.get("model_state_dict", ckpt)) if isinstance(ckpt, dict) else ckpt
@@ -248,7 +256,7 @@ def train(args: argparse.Namespace) -> Path:
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(args.model_name, len(classes), args.pretrained_checkpoint).to(device)
+    model = build_model(args.model_name, len(classes), args.pretrained_checkpoint, args.timm_pretrained).to(device)
     model = model.to(memory_format=torch.channels_last)
     frontend = MelFrontend(args, device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
