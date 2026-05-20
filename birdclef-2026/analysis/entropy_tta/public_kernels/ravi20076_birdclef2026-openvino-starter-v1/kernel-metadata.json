@@ -1,0 +1,28 @@
+{
+  "id": "ravi20076/birdclef2026-openvino-starter-v1",
+  "id_no": 111912382,
+  "title": "BirdClef2026|OpenVINO|Starter|V1",
+  "code_file": "birdclef2026-openvino-starter-v1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "earth and nature",
+    "multiclass classification",
+    "audio"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [
+    "antoinemasq/birdclef-2026-pytorch-baseline-training",
+    "packagemanager/pm-111912382-at-03-12-2026-00-07-13"
+  ],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:221c8b519c4f2efa4e712ac0f2e85878a403ea4d523a2cedf8ebf60cf1136c45",
+  "machine_shape": "None"
+}

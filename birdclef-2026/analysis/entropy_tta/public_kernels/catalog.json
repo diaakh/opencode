@@ -1,0 +1,702 @@
+[
+  {
+    "ref": "dingjiarun/pantanal-distill-birdclef2026-onnx",
+    "title": "pantanal-distill-birdclef2026-ONNX",
+    "author": "Xie Xin",
+    "votes": 720,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yusufmurtaza01/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "author": "Yusuf Murtaza",
+    "votes": 401,
+    "lb_from_title": null
+  },
+  {
+    "ref": "imaadmahmood/birdclef-2026-perch-v2-protossm-0-925",
+    "title": "BirdCLEF+ 2026 \u2014 Perch v2 + ProtoSSM \u00b7 0.925",
+    "author": "Imaad Mahmood",
+    "votes": 362,
+    "lb_from_title": 0.925
+  },
+  {
+    "ref": "marynaborovska/birdclef-26-two-pass-ssm-advanced-pp",
+    "title": "BirdCLEF+ 26 | Two-Pass SSM + Advanced PP",
+    "author": "Maryna Borovska",
+    "votes": 355,
+    "lb_from_title": null
+  },
+  {
+    "ref": "vyankteshdwivedi/birdclef-2026-onnx-perch-sequence-modeling",
+    "title": "BirdCLEF 2026 \u2014 ONNX Perch + Sequence Modeling",
+    "author": "zorojuro",
+    "votes": 352,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ulyanovantonamaranta/birdclef-2026-gate-fake008-head0015",
+    "title": "BirdCLEF+ 2026 Gate Fake008 Head0015",
+    "author": "Amaranta",
+    "votes": 333,
+    "lb_from_title": null
+  },
+  {
+    "ref": "jaejohn/perch-v2-starter-train-infer",
+    "title": "perch_v2 starter: train + infer",
+    "author": "g john rao",
+    "votes": 285,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yash9439/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "author": "yash bhaskar",
+    "votes": 269,
+    "lb_from_title": null
+  },
+  {
+    "ref": "kamongi/pantanal-distill-birdclef2026",
+    "title": "pantanal-distill-birdclef2026",
+    "author": "Patrick Kamongi",
+    "votes": 248,
+    "lb_from_title": null
+  },
+  {
+    "ref": "hideyukizushi/bird26-reproduce-perch-protossm-resssm-inf-train",
+    "title": "Bird26|REPRODUCE|Perch+ProtoSSM+ResSSM|INF/TRAIN",
+    "author": "yukiZ",
+    "votes": 246,
+    "lb_from_title": null
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-multi-model-ensemble",
+    "title": "BirdCLEF+ 2026 | Multi-Model Ensemble",
+    "author": "Raunak Dey",
+    "votes": 244,
+    "lb_from_title": null
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-5",
+    "title": "BirdCLEF+ 2026 | EoS.5",
+    "author": "F.A.Nina",
+    "votes": 239,
+    "lb_from_title": null
+  },
+  {
+    "ref": "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-934-s",
+    "title": "BirdCLEF+ 2026 Iter-Pseudo Perch+SED LB 0.934 s",
+    "author": "\u6ca1\u843d\u8005",
+    "votes": 222,
+    "lb_from_title": 0.934
+  },
+  {
+    "ref": "kdmitrie/birdclef26-google-perch-starter",
+    "title": "BirdCLEF26: Google Perch Starter",
+    "author": "Konstantin Dmitriev",
+    "votes": 210,
+    "lb_from_title": null
+  },
+  {
+    "ref": "cliff376/bc26-public-gate-combo-pc010-v2",
+    "title": "BC26 Public Gate Combo PC010 V2",
+    "author": "cliff376",
+    "votes": 204,
+    "lb_from_title": null
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-4",
+    "title": "BirdCLEF+ 2026 | EoS.4",
+    "author": "F.A.Nina",
+    "votes": 201,
+    "lb_from_title": null
+  },
+  {
+    "ref": "tuckerarrants/bc2026-distilled-sed",
+    "title": "BC2026 Distilled-SED",
+    "author": "Tucker Arrants",
+    "votes": 200,
+    "lb_from_title": null
+  },
+  {
+    "ref": "antoinemasq/birdclef-2026-pytorch-baseline-inference",
+    "title": "BirdCLEF 2026 - PyTorch Baseline [Inference]",
+    "author": "Antoine Masq",
+    "votes": 185,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ttahara/birdclef-2026-hgnetv2-b0-baseline-training",
+    "title": "BirdCLEF+2026: HGNetV2-B0 Baseline [Training]",
+    "author": "Tawara",
+    "votes": 181,
+    "lb_from_title": null
+  },
+  {
+    "ref": "chiranjithdharma/0-910-score",
+    "title": "0.910 Score",
+    "author": "Chiranjith",
+    "votes": 175,
+    "lb_from_title": 0.91
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-1",
+    "title": "BirdCLEF+ 2026 | EoS.1",
+    "author": "F.A.Nina",
+    "votes": 174,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-protossm-mlp-ensemble-perch-v2",
+    "title": "BirdCLEF+ 26 | ProtoSSM + MLP Ensemble | Perch v2",
+    "author": "Yuriy Greben",
+    "votes": 173,
+    "lb_from_title": null
+  },
+  {
+    "ref": "nina2025/birdclef-2026-ensemble-of-solutions",
+    "title": "BirdCLEF+ 2026 | Ensemble of solutions",
+    "author": "F.A.Nina",
+    "votes": 169,
+    "lb_from_title": null
+  },
+  {
+    "ref": "sunderekkiz/birdclef-2026-exp019-eos4-rank-power-06",
+    "title": "birdclef 2026 exp019 eos4 rank power 06",
+    "author": "Derek",
+    "votes": 167,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-0-947-lb-public-pipeline-reproduced",
+    "title": "BirdCLEF 2026 0.947 LB: Public Pipeline Reproduced",
+    "author": "m-toshi desu",
+    "votes": 162,
+    "lb_from_title": 0.947
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v2",
+    "title": "BirdClef2026|Public|Blend|V2",
+    "author": "Ravi Ramakrishnan",
+    "votes": 159,
+    "lb_from_title": null
+  },
+  {
+    "ref": "antoinemasq/birdclef-2026-pytorch-baseline-training",
+    "title": "BirdCLEF 2026 - PyTorch Baseline [Training]",
+    "author": "Antoine Masq",
+    "votes": 150,
+    "lb_from_title": null
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-2",
+    "title": "BirdCLEF+ 2026 | EoS.2",
+    "author": "F.A.Nina",
+    "votes": 146,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mtoshidesu/0-932-test-mod-version-4",
+    "title": "0.932\u3000test mod version 4",
+    "author": "m-toshi desu",
+    "votes": 136,
+    "lb_from_title": 0.932
+  },
+  {
+    "ref": "youssefmo942009/edits-on-birdclef-protossm-efficientnet-sed",
+    "title": "Edits on : BirdCLEF ProtoSSM + EfficientNet SED",
+    "author": "youssef abukhalifa",
+    "votes": 134,
+    "lb_from_title": null
+  },
+  {
+    "ref": "pradeeshrajan/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "author": "Pradeesh Rajan",
+    "votes": 134,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ttahara/birdclef-2026-hgnetv2-b0-baseline-inference",
+    "title": "BirdCLEF+2026: HGNetV2-B0 Baseline [Inference]",
+    "author": "Tawara",
+    "votes": 134,
+    "lb_from_title": null
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-3",
+    "title": "BirdCLEF+ 2026 | EoS.3",
+    "author": "F.A.Nina",
+    "votes": 133,
+    "lb_from_title": null
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-v6",
+    "title": "BirdCLEF+ 2026 V6",
+    "author": "Raunak Dey",
+    "votes": 130,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mlnjsh/birdclef2026-perch-v75",
+    "title": "BirdCLEF2026 Perch v75",
+    "author": "MilanJoshi",
+    "votes": 126,
+    "lb_from_title": null
+  },
+  {
+    "ref": "youssefmo942009/lb-0-948",
+    "title": "LB 0.948",
+    "author": "youssef abukhalifa",
+    "votes": 125,
+    "lb_from_title": 0.948
+  },
+  {
+    "ref": "yaroslavkholmirzayev/protossm-v18-maximum-ensemble-artifact",
+    "title": "ProtoSSM v18: Maximum Ensemble & artifact",
+    "author": "Yaroslav kholmirzayev",
+    "votes": 123,
+    "lb_from_title": null
+  },
+  {
+    "ref": "konbu17/bird26-wliilamsam-0943-with-train-audio-head",
+    "title": "bird26-wliilamsam-0943-with-train-audio-head",
+    "author": "konbu17",
+    "votes": 121,
+    "lb_from_title": 0.943
+  },
+  {
+    "ref": "yash9439/birdclef2026-timeoptimized",
+    "title": "birdclef2026-TimeOptimized",
+    "author": "yash bhaskar",
+    "votes": 120,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yashanathaniel/birdclef-2026-perch-v2-0-908",
+    "title": "BirdCLEF+ 2026 | perch_v2 0.908",
+    "author": "Yaserntx'",
+    "votes": 117,
+    "lb_from_title": 0.908
+  },
+  {
+    "ref": "ibrahimqasimi/birdclef-26-acoustic-species-identification-eda",
+    "title": "BirdCLEF'26 - Acoustic Species Identification|EDA",
+    "author": "Muhammad Ibrahim Qasmi",
+    "votes": 117,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v6",
+    "title": "BirdClef2026|Public|Blend|V6",
+    "author": "Ravi Ramakrishnan",
+    "votes": 109,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yaroslavkholmirzayev/0-946-replay-with-robust-inputs",
+    "title": "0.946 Replay With Robust Inputs",
+    "author": "Yaroslav kholmirzayev",
+    "votes": 107,
+    "lb_from_title": 0.946
+  },
+  {
+    "ref": "raunakdey07/birdclef-26-v7-notebook",
+    "title": "BirdCLEF+ '26 V7 Notebook",
+    "author": "Raunak Dey",
+    "votes": 104,
+    "lb_from_title": null
+  },
+  {
+    "ref": "zirach/birdclef-2026-perch-v2-starter-readable-ver",
+    "title": "BirdCLEF+ 2026 | perch_v2 starter (Readable ver.)",
+    "author": "Razi Rachman",
+    "votes": 103,
+    "lb_from_title": null
+  },
+  {
+    "ref": "baidalinadilzhan/birdclef-2026-lb-0-89",
+    "title": "BirdCLEF+2026 LB[0.89]",
+    "author": "Baidalin Adilzhan [Kazakhstan]",
+    "votes": 102,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yashanathaniel/simplerun-perch-v2embedprobe-bayesian-0-912",
+    "title": "SimpleRun|Perch v2EmbedProbe+bayesian|0.912",
+    "author": "Yaserntx'",
+    "votes": 101,
+    "lb_from_title": 0.912
+  },
+  {
+    "ref": "baidalinadilzhan/lb-0-792-birdclef-2026-starter",
+    "title": "LB[0.792] BirdCLEF+2026 | starter",
+    "author": "Baidalin Adilzhan [Kazakhstan]",
+    "votes": 98,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mattiaangeli/birdclef-2026-0-943-better-blend",
+    "title": "BirdCLEF+ 2026 0.943+ | Better Blend",
+    "author": "Mattia Angeli",
+    "votes": 97,
+    "lb_from_title": 0.943
+  },
+  {
+    "ref": "koushikrudra/0-928-winner-position",
+    "title": "[0.928]Winner Position",
+    "author": "Koushik Rudra",
+    "votes": 96,
+    "lb_from_title": 0.928
+  },
+  {
+    "ref": "safar1/lb-score-0-948",
+    "title": "[LB] [SCORE] [0.948]",
+    "author": "Safarbek",
+    "votes": 94,
+    "lb_from_title": 0.948
+  },
+  {
+    "ref": "yashanathaniel/perch-v2-starter-train-infer-mlp-0-905",
+    "title": "perch_v2 starter: train + infer|MLP|0.905",
+    "author": "Yaserntx'",
+    "votes": 93,
+    "lb_from_title": 0.905
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-0-941-public-lb-onnx-perch-pr",
+    "title": "BirdCLEF+ 2026 | 0.941 Public LB | ONNX Perch + Pr",
+    "author": "m-toshi desu",
+    "votes": 87,
+    "lb_from_title": 0.941
+  },
+  {
+    "ref": "afr1ste/birdclef-2026-0-946-updated-perch-sed",
+    "title": "BirdCLEF+ 2026 0.946 | Updated Perch + SED",
+    "author": "Afr1ste",
+    "votes": 86,
+    "lb_from_title": 0.946
+  },
+  {
+    "ref": "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-935-ft",
+    "title": "BirdCLEF+ 2026 Iter-Pseudo Perch+SED LB 0.935 ft",
+    "author": "\u6ca1\u843d\u8005",
+    "votes": 86,
+    "lb_from_title": 0.935
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026",
+    "title": "\ud83d\udc26 BirdCLEF 2026",
+    "author": "m-toshi desu",
+    "votes": 85,
+    "lb_from_title": null
+  },
+  {
+    "ref": "blamerx/detect-the-bird-inference",
+    "title": "Detect the Bird Inference",
+    "author": "BlamerX",
+    "votes": 85,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-onnx-perch-dual-ssms-vectorized-mlp",
+    "title": "BirdCLEF+ 26 | ONNX Perch Dual SSMs Vectorized-MLP",
+    "author": "Yuriy Greben",
+    "votes": 84,
+    "lb_from_title": null
+  },
+  {
+    "ref": "pilkwang/birdclef-26-acoustic-time-window-rank-fusion",
+    "title": "BirdCLEF+ 26 Acoustic Time-Window Rank Fusion",
+    "author": "Pilkwang Kim",
+    "votes": 82,
+    "lb_from_title": null
+  },
+  {
+    "ref": "miaaaf/v18x-dmodel",
+    "title": "v18x-dmodel",
+    "author": "Miaaa F",
+    "votes": 81,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yashanathaniel/birdclef2026-public-blend-v6-0-892",
+    "title": "BirdClef2026|Public|Blend|V6|0.892",
+    "author": "Yaserntx'",
+    "votes": 81,
+    "lb_from_title": null
+  },
+  {
+    "ref": "marylka/birdclef-2026-eda",
+    "title": "\ud83d\udc26 BirdCLEF 2026 \u2014 \ud83d\udd35 EDA \ud83d\udd35",
+    "author": "marylka",
+    "votes": 81,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yusufmurtaza01/birdclef-2026",
+    "title": "birdclef | 2026",
+    "author": "Yusuf Murtaza",
+    "votes": 80,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yash9439/birdclef2026-keepimproving",
+    "title": "birdclef2026-KeepImproving",
+    "author": "yash bhaskar",
+    "votes": 80,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ashok205/pantanal-distill-birdclef2026",
+    "title": "pantanal-distill-birdclef2026",
+    "author": "NNMax",
+    "votes": 80,
+    "lb_from_title": null
+  },
+  {
+    "ref": "tonylica/birdclef-lb-0-872-0-862-16mins-runtime",
+    "title": "BirdCLEF LB 0.872+0.862 16mins runtime",
+    "author": "Tony Li",
+    "votes": 78,
+    "lb_from_title": 0.872
+  },
+  {
+    "ref": "stefankahl/birdclef-2026-sample-submission",
+    "title": "BirdCLEF+ 2026 Sample Submission",
+    "author": "Stefan Kahl",
+    "votes": 77,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yashanathaniel/perch-v2-starter-train-infer-0-906",
+    "title": "Perch v2|starter train + infer |0.906",
+    "author": "Yaserntx'",
+    "votes": 76,
+    "lb_from_title": 0.906
+  },
+  {
+    "ref": "karnakbaevarthur/gated-rank-fusion-pipeline",
+    "title": "Gated Rank Fusion Pipeline",
+    "author": "Karnakbayev Artur",
+    "votes": 74,
+    "lb_from_title": null
+  },
+  {
+    "ref": "needless090/birdclef-2026-perch-sed-lb-0-946-clap",
+    "title": "BirdCLEF+ 2026 Perch+SED LB 0.946 clap",
+    "author": "\u6ca1\u843d\u8005",
+    "votes": 74,
+    "lb_from_title": 0.946
+  },
+  {
+    "ref": "sarcasmos/birdsong-classifier-efficientnet-attention",
+    "title": "Birdsong-Classifier-Efficientnet-Attention",
+    "author": "Sheikh Abdul Rehman",
+    "votes": 74,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-protossm-v5-time-optimised",
+    "title": "BirdCLEF+ 26 | ProtoSSM v5 | Time Optimised",
+    "author": "Yuriy Greben",
+    "votes": 73,
+    "lb_from_title": null
+  },
+  {
+    "ref": "zirach/birdclef-2026-perch-protossm",
+    "title": "BirdCLEF+ 2026 | Perch + ProtoSSM",
+    "author": "Razi Rachman",
+    "votes": 72,
+    "lb_from_title": null
+  },
+  {
+    "ref": "raunakdey07/birdclef-26-v5-notebook",
+    "title": "BirdCLEF+ '26 V5 Notebook",
+    "author": "Raunak Dey",
+    "votes": 69,
+    "lb_from_title": null
+  },
+  {
+    "ref": "gerarddevlin/birdclef-2026-finetuned",
+    "title": "BirdCLEF+ 2026 Finetuned",
+    "author": "Gerard Devlin",
+    "votes": 69,
+    "lb_from_title": null
+  },
+  {
+    "ref": "youssefmo942009/version-3-lgbm",
+    "title": "Version 3 lgbm",
+    "author": "youssef abukhalifa",
+    "votes": 69,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v1",
+    "title": "BirdClef2026|Public|Blend|V1",
+    "author": "Ravi Ramakrishnan",
+    "votes": 69,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ulyanovantonamaranta/birdclef-2026-better-blend-repro",
+    "title": "BirdCLEF+ 2026 Better Blend Repro",
+    "author": "Amaranta",
+    "votes": 63,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mattiaangeli/birdclef-protossm-efficientnet-sed-all-public",
+    "title": "BirdCLEF ProtoSSM + EfficientNet SED (All Public)",
+    "author": "Mattia Angeli",
+    "votes": 63,
+    "lb_from_title": null
+  },
+  {
+    "ref": "aliozanmemetoglu/birdclef-enb0-coarse-ensemble-submission",
+    "title": "birdclef enb0 coarse ensemble submission",
+    "author": "Ali Ozan Memetoglu",
+    "votes": 61,
+    "lb_from_title": null
+  },
+  {
+    "ref": "meenalsinha/birdclef-2026-improved",
+    "title": "BirdCLEF+ 2026 Improved",
+    "author": "Meenal Sinha",
+    "votes": 60,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ashok205/birdclef-2026",
+    "title": "BirdCLEF 2026",
+    "author": "NNMax",
+    "votes": 60,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mlnjsh/birdclef2026-perch-v77",
+    "title": "BirdCLEF2026 Perch v77",
+    "author": "MilanJoshi",
+    "votes": 60,
+    "lb_from_title": null
+  },
+  {
+    "ref": "jiweiliu/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "author": "Jiwei Liu",
+    "votes": 60,
+    "lb_from_title": null
+  },
+  {
+    "ref": "blamerx/detect-the-bird-training",
+    "title": "Detect the Bird Training",
+    "author": "BlamerX",
+    "votes": 60,
+    "lb_from_title": null
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-deep-protossm-sed-dynamic-blend",
+    "title": "BirdCLEF+ 2026 | Deep ProtoSSM & SED Dynamic Blend",
+    "author": "Raunak Dey",
+    "votes": 58,
+    "lb_from_title": null
+  },
+  {
+    "ref": "baidalinadilzhan/birdclef-lb-0-882",
+    "title": "BirdCLEF lb [0.882]",
+    "author": "Baidalin Adilzhan [Kazakhstan]",
+    "votes": 58,
+    "lb_from_title": null
+  },
+  {
+    "ref": "ravi20076/birdclef2026-openvino-starter-v1",
+    "title": "BirdClef2026|OpenVINO|Starter|V1",
+    "author": "Ravi Ramakrishnan",
+    "votes": 58,
+    "lb_from_title": null
+  },
+  {
+    "ref": "xjoannax88/birdclef-2026-eda",
+    "title": "\ud83d\udc26 BirdCLEF+ 2026 | EDA",
+    "author": "J.",
+    "votes": 56,
+    "lb_from_title": null
+  },
+  {
+    "ref": "aidensong123/birdclef-2026-sed-baseline-lb-0-862",
+    "title": "BirdCLEF 2026 | SED Baseline | LB 0.862",
+    "author": "AidenSong123",
+    "votes": 56,
+    "lb_from_title": 0.862
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-visual-cpu-inference",
+    "title": "BirdCLEF 2026 | Visual CPU Inference",
+    "author": "m-toshi desu",
+    "votes": 53,
+    "lb_from_title": null
+  },
+  {
+    "ref": "edomingo/sub-080-yuriy-dualssm",
+    "title": "SUB 080 Yuriy DualSSM",
+    "author": "Enric Domingo",
+    "votes": 53,
+    "lb_from_title": null
+  },
+  {
+    "ref": "karnakbaevarthur/power-optimization",
+    "title": "Power optimization",
+    "author": "Karnakbayev Artur",
+    "votes": 51,
+    "lb_from_title": null
+  },
+  {
+    "ref": "youssefmo942009/0-947-lb-improved",
+    "title": "0.947 lb improved",
+    "author": "youssef abukhalifa",
+    "votes": 48,
+    "lb_from_title": 0.947
+  },
+  {
+    "ref": "marynaborovska/birdclef-26-protossm-v5-resboosting-0-927-lb",
+    "title": "BirdCLEF+26 | ProtoSSM v5 + ResBoosting[0.927+ LB]",
+    "author": "Maryna Borovska",
+    "votes": 48,
+    "lb_from_title": 0.927
+  },
+  {
+    "ref": "zeyadmohamadezzat/birdclef-2026-two-branch-perch-sed-sidecar",
+    "title": "BirdCLEF+ 2026 | Two-Branch Perch + SED + Sidecar",
+    "author": "Zeyad Mohamad Ezzat",
+    "votes": 47,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yusufmurtaza01/pantanal-birdclef-26",
+    "title": "pantanal-birdclef-26",
+    "author": "Yusuf Murtaza",
+    "votes": 45,
+    "lb_from_title": null
+  },
+  {
+    "ref": "patelris/birdclef-2026-starter-notebook-eda-audio",
+    "title": "\ud83d\udc26 BirdCLEF 2026:Starter Notebook (EDA+Audio)",
+    "author": "Rishi Patel",
+    "votes": 44,
+    "lb_from_title": null
+  },
+  {
+    "ref": "mtoshidesu/birdclef-visualization-notebook",
+    "title": "BirdCLEF Visualization Notebook",
+    "author": "m-toshi desu",
+    "votes": 43,
+    "lb_from_title": null
+  },
+  {
+    "ref": "yaroslavkholmirzayev/birdclef-2026-protossm-v5-maximum-ensemble",
+    "title": "BirdCLEF+ 2026 -- ProtoSSM v5: Maximum Ensemble",
+    "author": "Yaroslav kholmirzayev",
+    "votes": 43,
+    "lb_from_title": null
+  }
+]

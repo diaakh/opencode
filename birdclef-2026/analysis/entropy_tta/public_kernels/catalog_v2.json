@@ -1,0 +1,1966 @@
+[
+  {
+    "ref": "dingjiarun/pantanal-distill-birdclef2026-onnx",
+    "title": "pantanal-distill-birdclef2026-ONNX",
+    "votes": 720,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 148600
+  },
+  {
+    "ref": "yusufmurtaza01/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "votes": 401,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 136528
+  },
+  {
+    "ref": "imaadmahmood/birdclef-2026-perch-v2-protossm-0-925",
+    "title": "BirdCLEF+ 2026 \u2014 Perch v2 + ProtoSSM \u00b7 0.925",
+    "votes": 362,
+    "lb_from_title": 0.925,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 68405
+  },
+  {
+    "ref": "marynaborovska/birdclef-26-two-pass-ssm-advanced-pp",
+    "title": "BirdCLEF+ 26 | Two-Pass SSM + Advanced PP",
+    "votes": 355,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 108261
+  },
+  {
+    "ref": "vyankteshdwivedi/birdclef-2026-onnx-perch-sequence-modeling",
+    "title": "BirdCLEF 2026 \u2014 ONNX Perch + Sequence Modeling",
+    "votes": 352,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 87180
+  },
+  {
+    "ref": "ulyanovantonamaranta/birdclef-2026-gate-fake008-head0015",
+    "title": "BirdCLEF+ 2026 Gate Fake008 Head0015",
+    "votes": 333,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 100245
+  },
+  {
+    "ref": "jaejohn/perch-v2-starter-train-infer",
+    "title": "perch_v2 starter: train + infer",
+    "votes": 285,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "sed",
+      "rag",
+      "gate"
+    ],
+    "code_size": 47960
+  },
+  {
+    "ref": "yash9439/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "votes": 269,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 126275
+  },
+  {
+    "ref": "kamongi/pantanal-distill-birdclef2026",
+    "title": "pantanal-distill-birdclef2026",
+    "votes": 248,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 155343
+  },
+  {
+    "ref": "hideyukizushi/bird26-reproduce-perch-protossm-resssm-inf-train",
+    "title": "Bird26|REPRODUCE|Perch+ProtoSSM+ResSSM|INF/TRAIN",
+    "votes": 246,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 165476
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-multi-model-ensemble",
+    "title": "BirdCLEF+ 2026 | Multi-Model Ensemble",
+    "votes": 244,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 110407
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-5",
+    "title": "BirdCLEF+ 2026 | EoS.5",
+    "votes": 239,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 327228
+  },
+  {
+    "ref": "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-934-s",
+    "title": "BirdCLEF+ 2026 Iter-Pseudo Perch+SED LB 0.934 s",
+    "votes": 222,
+    "lb_from_title": 0.934,
+    "lb_in_code": [
+      0.934
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "iter-pseudo",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 163203
+  },
+  {
+    "ref": "kdmitrie/birdclef26-google-perch-starter",
+    "title": "BirdCLEF26: Google Perch Starter",
+    "votes": 210,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "sed"
+    ],
+    "code_size": 9900
+  },
+  {
+    "ref": "cliff376/bc26-public-gate-combo-pc010-v2",
+    "title": "BC26 Public Gate Combo PC010 V2",
+    "votes": 204,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 99134
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-4",
+    "title": "BirdCLEF+ 2026 | EoS.4",
+    "votes": 201,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 404510
+  },
+  {
+    "ref": "tuckerarrants/bc2026-distilled-sed",
+    "title": "BC2026 Distilled-SED",
+    "votes": 200,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "efficientnet",
+      "rag",
+      "ridge",
+      "gate",
+      "distill"
+    ],
+    "code_size": 70106
+  },
+  {
+    "ref": "antoinemasq/birdclef-2026-pytorch-baseline-inference",
+    "title": "BirdCLEF 2026 - PyTorch Baseline [Inference]",
+    "votes": 185,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "efficientnet"
+    ],
+    "code_size": 14580
+  },
+  {
+    "ref": "ttahara/birdclef-2026-hgnetv2-b0-baseline-training",
+    "title": "BirdCLEF+2026: HGNetV2-B0 Baseline [Training]",
+    "votes": 181,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "hgnetv2",
+      "rag"
+    ],
+    "code_size": 56545
+  },
+  {
+    "ref": "chiranjithdharma/0-910-score",
+    "title": "0.910 Score",
+    "votes": 175,
+    "lb_from_title": 0.91,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "efficientnet",
+      "rag",
+      "gate"
+    ],
+    "code_size": 41782
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-1",
+    "title": "BirdCLEF+ 2026 | EoS.1",
+    "votes": 174,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 536357
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-protossm-mlp-ensemble-perch-v2",
+    "title": "BirdCLEF+ 26 | ProtoSSM + MLP Ensemble | Perch v2",
+    "votes": 173,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 138944
+  },
+  {
+    "ref": "nina2025/birdclef-2026-ensemble-of-solutions",
+    "title": "BirdCLEF+ 2026 | Ensemble of solutions",
+    "votes": 169,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 308142
+  },
+  {
+    "ref": "sunderekkiz/birdclef-2026-exp019-eos4-rank-power-06",
+    "title": "birdclef 2026 exp019 eos4 rank power 06",
+    "votes": 167,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 406656
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-0-947-lb-public-pipeline-reproduced",
+    "title": "BirdCLEF 2026 0.947 LB: Public Pipeline Reproduced",
+    "votes": 162,
+    "lb_from_title": 0.947,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 80086
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v2",
+    "title": "BirdClef2026|Public|Blend|V2",
+    "votes": 159,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.825,
+      0.792,
+      0.825,
+      0.792
+    ],
+    "arch": [
+      "perch_v2",
+      "sed",
+      "efficientnet",
+      "rag",
+      "ensemble"
+    ],
+    "code_size": 20881
+  },
+  {
+    "ref": "antoinemasq/birdclef-2026-pytorch-baseline-training",
+    "title": "BirdCLEF 2026 - PyTorch Baseline [Training]",
+    "votes": 150,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "efficientnet",
+      "rag"
+    ],
+    "code_size": 20263
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-2",
+    "title": "BirdCLEF+ 2026 | EoS.2",
+    "votes": 146,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 382469
+  },
+  {
+    "ref": "mtoshidesu/0-932-test-mod-version-4",
+    "title": "0.932\u3000test mod version 4",
+    "votes": 136,
+    "lb_from_title": 0.932,
+    "lb_in_code": [
+      0.932
+    ],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 85223
+  },
+  {
+    "ref": "youssefmo942009/edits-on-birdclef-protossm-efficientnet-sed",
+    "title": "Edits on : BirdCLEF ProtoSSM + EfficientNet SED",
+    "votes": 134,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 61102
+  },
+  {
+    "ref": "pradeeshrajan/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "votes": 134,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 138486
+  },
+  {
+    "ref": "ttahara/birdclef-2026-hgnetv2-b0-baseline-inference",
+    "title": "BirdCLEF+2026: HGNetV2-B0 Baseline [Inference]",
+    "votes": 134,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "hgnetv2",
+      "distill"
+    ],
+    "code_size": 25474
+  },
+  {
+    "ref": "nina2025/birdclef-2026-eos-3",
+    "title": "BirdCLEF+ 2026 | EoS.3",
+    "votes": 133,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 873125
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-v6",
+    "title": "BirdCLEF+ 2026 V6",
+    "votes": 130,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 392845
+  },
+  {
+    "ref": "mlnjsh/birdclef2026-perch-v75",
+    "title": "BirdCLEF2026 Perch v75",
+    "votes": 126,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "knn",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 89320
+  },
+  {
+    "ref": "youssefmo942009/lb-0-948",
+    "title": "LB 0.948",
+    "votes": 125,
+    "lb_from_title": 0.948,
+    "lb_in_code": [
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 98481
+  },
+  {
+    "ref": "yaroslavkholmirzayev/protossm-v18-maximum-ensemble-artifact",
+    "title": "ProtoSSM v18: Maximum Ensemble & artifact",
+    "votes": 123,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 98792
+  },
+  {
+    "ref": "konbu17/bird26-wliilamsam-0943-with-train-audio-head",
+    "title": "bird26-wliilamsam-0943-with-train-audio-head",
+    "votes": 121,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 100712
+  },
+  {
+    "ref": "yash9439/birdclef2026-timeoptimized",
+    "title": "birdclef2026-TimeOptimized",
+    "votes": 120,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 121177
+  },
+  {
+    "ref": "yashanathaniel/birdclef-2026-perch-v2-0-908",
+    "title": "BirdCLEF+ 2026 | perch_v2 0.908",
+    "votes": 117,
+    "lb_from_title": 0.908,
+    "lb_in_code": [
+      0.908,
+      0.908
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "rag",
+      "lgb",
+      "gate",
+      "ssm"
+    ],
+    "code_size": 89298
+  },
+  {
+    "ref": "ibrahimqasimi/birdclef-26-acoustic-species-identification-eda",
+    "title": "BirdCLEF'26 - Acoustic Species Identification|EDA",
+    "votes": 117,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "efficientnet",
+      "rag",
+      "ssm"
+    ],
+    "code_size": 219373
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v6",
+    "title": "BirdClef2026|Public|Blend|V6",
+    "votes": 109,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.872,
+      0.862,
+      0.872,
+      0.862
+    ],
+    "arch": [
+      "sed",
+      "efficientnet"
+    ],
+    "code_size": 30220
+  },
+  {
+    "ref": "yaroslavkholmirzayev/0-946-replay-with-robust-inputs",
+    "title": "0.946 Replay With Robust Inputs",
+    "votes": 107,
+    "lb_from_title": 0.946,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 130627
+  },
+  {
+    "ref": "raunakdey07/birdclef-26-v7-notebook",
+    "title": "BirdCLEF+ '26 V7 Notebook",
+    "votes": 104,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 76211
+  },
+  {
+    "ref": "zirach/birdclef-2026-perch-v2-starter-readable-ver",
+    "title": "BirdCLEF+ 2026 | perch_v2 starter (Readable ver.)",
+    "votes": 103,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "rag",
+      "gate"
+    ],
+    "code_size": 40720
+  },
+  {
+    "ref": "baidalinadilzhan/birdclef-2026-lb-0-89",
+    "title": "BirdCLEF+2026 LB[0.89]",
+    "votes": 102,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "efficientnet"
+    ],
+    "code_size": 20010
+  },
+  {
+    "ref": "yashanathaniel/simplerun-perch-v2embedprobe-bayesian-0-912",
+    "title": "SimpleRun|Perch v2EmbedProbe+bayesian|0.912",
+    "votes": 101,
+    "lb_from_title": 0.912,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "sed",
+      "rag",
+      "gate",
+      "ssm"
+    ],
+    "code_size": 95293
+  },
+  {
+    "ref": "baidalinadilzhan/lb-0-792-birdclef-2026-starter",
+    "title": "LB[0.792] BirdCLEF+2026 | starter",
+    "votes": 98,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "efficientnet",
+      "rag",
+      "ensemble"
+    ],
+    "code_size": 14540
+  },
+  {
+    "ref": "mattiaangeli/birdclef-2026-0-943-better-blend",
+    "title": "BirdCLEF+ 2026 0.943+ | Better Blend",
+    "votes": 97,
+    "lb_from_title": 0.943,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 98776
+  },
+  {
+    "ref": "koushikrudra/0-928-winner-position",
+    "title": "[0.928]Winner Position",
+    "votes": 96,
+    "lb_from_title": 0.928,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 90930
+  },
+  {
+    "ref": "safar1/lb-score-0-948",
+    "title": "[LB] [SCORE] [0.948]",
+    "votes": 94,
+    "lb_from_title": 0.948,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 90471
+  },
+  {
+    "ref": "yashanathaniel/perch-v2-starter-train-infer-mlp-0-905",
+    "title": "perch_v2 starter: train + infer|MLP|0.905",
+    "votes": 93,
+    "lb_from_title": 0.905,
+    "lb_in_code": [
+      0.905
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate"
+    ],
+    "code_size": 57749
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-0-941-public-lb-onnx-perch-pr",
+    "title": "BirdCLEF+ 2026 | 0.941 Public LB | ONNX Perch + Pr",
+    "votes": 87,
+    "lb_from_title": 0.941,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 107824
+  },
+  {
+    "ref": "afr1ste/birdclef-2026-0-946-updated-perch-sed",
+    "title": "BirdCLEF+ 2026 0.946 | Updated Perch + SED",
+    "votes": 86,
+    "lb_from_title": 0.946,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 128023
+  },
+  {
+    "ref": "needless090/birdclef-2026-iter-pseudo-perch-sed-lb-0-935-ft",
+    "title": "BirdCLEF+ 2026 Iter-Pseudo Perch+SED LB 0.935 ft",
+    "votes": 86,
+    "lb_from_title": 0.935,
+    "lb_in_code": [
+      0.935
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "iter-pseudo",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 128725
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026",
+    "title": "\ud83d\udc26 BirdCLEF 2026",
+    "votes": 85,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 50980
+  },
+  {
+    "ref": "blamerx/detect-the-bird-inference",
+    "title": "Detect the Bird Inference",
+    "votes": 85,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm"
+    ],
+    "code_size": 28149
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-onnx-perch-dual-ssms-vectorized-mlp",
+    "title": "BirdCLEF+ 26 | ONNX Perch Dual SSMs Vectorized-MLP",
+    "votes": 84,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 108168
+  },
+  {
+    "ref": "pilkwang/birdclef-26-acoustic-time-window-rank-fusion",
+    "title": "BirdCLEF+ 26 Acoustic Time-Window Rank Fusion",
+    "votes": 82,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 117996
+  },
+  {
+    "ref": "miaaaf/v18x-dmodel",
+    "title": "v18x-dmodel",
+    "votes": 81,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 71383
+  },
+  {
+    "ref": "yashanathaniel/birdclef2026-public-blend-v6-0-892",
+    "title": "BirdClef2026|Public|Blend|V6|0.892",
+    "votes": 81,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.872,
+      0.862,
+      0.872,
+      0.862
+    ],
+    "arch": [
+      "sed",
+      "efficientnet",
+      "rag"
+    ],
+    "code_size": 35338
+  },
+  {
+    "ref": "marylka/birdclef-2026-eda",
+    "title": "\ud83d\udc26 BirdCLEF 2026 \u2014 \ud83d\udd35 EDA \ud83d\udd35",
+    "votes": 81,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "rag"
+    ],
+    "code_size": 28786
+  },
+  {
+    "ref": "yusufmurtaza01/birdclef-2026",
+    "title": "birdclef | 2026",
+    "votes": 80,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 140848
+  },
+  {
+    "ref": "yash9439/birdclef2026-keepimproving",
+    "title": "birdclef2026-KeepImproving",
+    "votes": 80,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 137989
+  },
+  {
+    "ref": "ashok205/pantanal-distill-birdclef2026",
+    "title": "pantanal-distill-birdclef2026",
+    "votes": 80,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 114837
+  },
+  {
+    "ref": "tonylica/birdclef-lb-0-872-0-862-16mins-runtime",
+    "title": "BirdCLEF LB 0.872+0.862 16mins runtime",
+    "votes": 78,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.872
+    ],
+    "arch": [
+      "sed",
+      "efficientnet"
+    ],
+    "code_size": 17692
+  },
+  {
+    "ref": "stefankahl/birdclef-2026-sample-submission",
+    "title": "BirdCLEF+ 2026 Sample Submission",
+    "votes": 77,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [],
+    "code_size": 4387
+  },
+  {
+    "ref": "yashanathaniel/perch-v2-starter-train-infer-0-906",
+    "title": "Perch v2|starter train + infer |0.906",
+    "votes": 76,
+    "lb_from_title": 0.906,
+    "lb_in_code": [
+      0.906,
+      0.906
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate"
+    ],
+    "code_size": 65435
+  },
+  {
+    "ref": "karnakbaevarthur/gated-rank-fusion-pipeline",
+    "title": "Gated Rank Fusion Pipeline",
+    "votes": 74,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.928,
+      0.949,
+      0.948
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 331305
+  },
+  {
+    "ref": "needless090/birdclef-2026-perch-sed-lb-0-946-clap",
+    "title": "BirdCLEF+ 2026 Perch+SED LB 0.946 clap",
+    "votes": 74,
+    "lb_from_title": 0.946,
+    "lb_in_code": [
+      0.946
+    ],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 133841
+  },
+  {
+    "ref": "sarcasmos/birdsong-classifier-efficientnet-attention",
+    "title": "Birdsong-Classifier-Efficientnet-Attention",
+    "votes": 74,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "efficientnet",
+      "rag",
+      "ensemble",
+      "distill"
+    ],
+    "code_size": 238967
+  },
+  {
+    "ref": "yuriygreben/birdclef-26-protossm-v5-time-optimised",
+    "title": "BirdCLEF+ 26 | ProtoSSM v5 | Time Optimised",
+    "votes": 73,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 136010
+  },
+  {
+    "ref": "zirach/birdclef-2026-perch-protossm",
+    "title": "BirdCLEF+ 2026 | Perch + ProtoSSM",
+    "votes": 72,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 89322
+  },
+  {
+    "ref": "raunakdey07/birdclef-26-v5-notebook",
+    "title": "BirdCLEF+ '26 V5 Notebook",
+    "votes": 69,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 108233
+  },
+  {
+    "ref": "gerarddevlin/birdclef-2026-finetuned",
+    "title": "BirdCLEF+ 2026 Finetuned",
+    "votes": 69,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2"
+    ],
+    "code_size": 3843
+  },
+  {
+    "ref": "youssefmo942009/version-3-lgbm",
+    "title": "Version 3 lgbm",
+    "votes": 69,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 103277
+  },
+  {
+    "ref": "ravi20076/birdclef2026-public-blend-v1",
+    "title": "BirdClef2026|Public|Blend|V1",
+    "votes": 69,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.792,
+      0.786,
+      0.749,
+      0.792,
+      0.786
+    ],
+    "arch": [
+      "sed",
+      "efficientnet",
+      "rag",
+      "ensemble"
+    ],
+    "code_size": 32257
+  },
+  {
+    "ref": "ulyanovantonamaranta/birdclef-2026-better-blend-repro",
+    "title": "BirdCLEF+ 2026 Better Blend Repro",
+    "votes": 63,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "hgnetv2",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 126862
+  },
+  {
+    "ref": "mattiaangeli/birdclef-protossm-efficientnet-sed-all-public",
+    "title": "BirdCLEF ProtoSSM + EfficientNet SED (All Public)",
+    "votes": 63,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 57920
+  },
+  {
+    "ref": "aliozanmemetoglu/birdclef-enb0-coarse-ensemble-submission",
+    "title": "birdclef enb0 coarse ensemble submission",
+    "votes": 61,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "efficientnet",
+      "ensemble"
+    ],
+    "code_size": 16453
+  },
+  {
+    "ref": "meenalsinha/birdclef-2026-improved",
+    "title": "BirdCLEF+ 2026 Improved",
+    "votes": 60,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 99040
+  },
+  {
+    "ref": "ashok205/birdclef-2026",
+    "title": "BirdCLEF 2026",
+    "votes": 60,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 86993
+  },
+  {
+    "ref": "mlnjsh/birdclef2026-perch-v77",
+    "title": "BirdCLEF2026 Perch v77",
+    "votes": 60,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "knn",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 89320
+  },
+  {
+    "ref": "jiweiliu/pantanal-distill-birdclef2026-improvement",
+    "title": "pantanal-distill-birdclef2026-Improvement",
+    "votes": 60,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 71475
+  },
+  {
+    "ref": "blamerx/detect-the-bird-training",
+    "title": "Detect the Bird Training",
+    "votes": 60,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 65619
+  },
+  {
+    "ref": "raunakdey07/birdclef-2026-deep-protossm-sed-dynamic-blend",
+    "title": "BirdCLEF+ 2026 | Deep ProtoSSM & SED Dynamic Blend",
+    "votes": 58,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "efficientnet",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 253814
+  },
+  {
+    "ref": "baidalinadilzhan/birdclef-lb-0-882",
+    "title": "BirdCLEF lb [0.882]",
+    "votes": 58,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "efficientnet",
+      "rag"
+    ],
+    "code_size": 18781
+  },
+  {
+    "ref": "ravi20076/birdclef2026-openvino-starter-v1",
+    "title": "BirdClef2026|OpenVINO|Starter|V1",
+    "votes": 58,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "efficientnet"
+    ],
+    "code_size": 13103
+  },
+  {
+    "ref": "xjoannax88/birdclef-2026-eda",
+    "title": "\ud83d\udc26 BirdCLEF+ 2026 | EDA",
+    "votes": 56,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "rag"
+    ],
+    "code_size": 33257
+  },
+  {
+    "ref": "aidensong123/birdclef-2026-sed-baseline-lb-0-862",
+    "title": "BirdCLEF 2026 | SED Baseline | LB 0.862",
+    "votes": 56,
+    "lb_from_title": null,
+    "lb_in_code": [
+      0.862
+    ],
+    "arch": [
+      "sed",
+      "efficientnet"
+    ],
+    "code_size": 11351
+  },
+  {
+    "ref": "mtoshidesu/birdclef-2026-visual-cpu-inference",
+    "title": "BirdCLEF 2026 | Visual CPU Inference",
+    "votes": 53,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 98606
+  },
+  {
+    "ref": "edomingo/sub-080-yuriy-dualssm",
+    "title": "SUB 080 Yuriy DualSSM",
+    "votes": 53,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 108084
+  },
+  {
+    "ref": "karnakbaevarthur/power-optimization",
+    "title": "Power optimization",
+    "votes": 51,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 98643
+  },
+  {
+    "ref": "youssefmo942009/0-947-lb-improved",
+    "title": "0.947 lb improved",
+    "votes": 48,
+    "lb_from_title": 0.947,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 93472
+  },
+  {
+    "ref": "marynaborovska/birdclef-26-protossm-v5-resboosting-0-927-lb",
+    "title": "BirdCLEF+26 | ProtoSSM v5 + ResBoosting[0.927+ LB]",
+    "votes": 48,
+    "lb_from_title": 0.927,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 139769
+  },
+  {
+    "ref": "zeyadmohamadezzat/birdclef-2026-two-branch-perch-sed-sidecar",
+    "title": "BirdCLEF+ 2026 | Two-Branch Perch + SED + Sidecar",
+    "votes": 47,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 90863
+  },
+  {
+    "ref": "yusufmurtaza01/pantanal-birdclef-26",
+    "title": "pantanal-birdclef-26",
+    "votes": 45,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 142139
+  },
+  {
+    "ref": "patelris/birdclef-2026-starter-notebook-eda-audio",
+    "title": "\ud83d\udc26 BirdCLEF 2026:Starter Notebook (EDA+Audio)",
+    "votes": 44,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "sed",
+      "rag"
+    ],
+    "code_size": 47820
+  },
+  {
+    "ref": "mtoshidesu/birdclef-visualization-notebook",
+    "title": "BirdCLEF Visualization Notebook",
+    "votes": 43,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "sed",
+      "v73",
+      "rag",
+      "knn",
+      "mlp",
+      "lgb",
+      "ssm"
+    ],
+    "code_size": 355896
+  },
+  {
+    "ref": "yaroslavkholmirzayev/birdclef-2026-protossm-v5-maximum-ensemble",
+    "title": "BirdCLEF+ 2026 -- ProtoSSM v5: Maximum Ensemble",
+    "votes": 43,
+    "lb_from_title": null,
+    "lb_in_code": [],
+    "arch": [
+      "perch_v2",
+      "perch v2",
+      "protossm",
+      "proto_ssm",
+      "sed",
+      "rag",
+      "mlp",
+      "lightgbm",
+      "lgb",
+      "gate",
+      "ensemble",
+      "ssm",
+      "distill"
+    ],
+    "code_size": 129168
+  }
+]

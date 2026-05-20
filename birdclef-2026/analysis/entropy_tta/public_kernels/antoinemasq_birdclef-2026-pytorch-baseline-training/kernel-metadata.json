@@ -1,0 +1,23 @@
+{
+  "id": "antoinemasq/birdclef-2026-pytorch-baseline-training",
+  "id_no": 111886247,
+  "title": "BirdCLEF 2026 - PyTorch Baseline [Training]",
+  "code_file": "birdclef-2026-pytorch-baseline-training.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac",
+  "machine_shape": "Gpu"
+}

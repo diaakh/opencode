@@ -1,0 +1,23 @@
+{
+  "id": "tonylica/birdclef-lb-0-872-0-862-16mins-runtime",
+  "id_no": 112313739,
+  "title": "BirdCLEF LB 0.872+0.862 16mins runtime",
+  "code_file": "birdclef-lb-0-872-0-862-16mins-runtime.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "dataset_sources": [
+    "tonylica/birdclef-2026-model"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:221c8b519c4f2efa4e712ac0f2e85878a403ea4d523a2cedf8ebf60cf1136c45",
+  "machine_shape": "None"
+}
