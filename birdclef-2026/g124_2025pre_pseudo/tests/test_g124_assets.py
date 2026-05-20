@@ -21,6 +21,7 @@ from run_kaggle_train import build_default_argv
 from run_kaggle_smoke import build_smoke_argv
 from kaggle_launcher import find_code_root
 from train_g124 import build_parser as build_train_parser
+from train_g124 import add_folds
 from train_g124 import parse_soundscape_row_id
 
 
@@ -220,6 +221,20 @@ def test_parse_soundscape_row_id_recovers_filename_and_start():
 
     assert filename == "BC2026_Train_0001_S08_20250606_030007.ogg"
     assert start == 30.0
+
+
+def test_add_folds_handles_classes_with_fewer_examples_than_folds():
+    frame = pd.DataFrame(
+        {
+            "path": [f"{label}_{idx}.ogg" for label in ["a", "b"] for idx in range(2)],
+            "primary_label": [label for label in ["a", "b"] for _ in range(2)],
+        }
+    )
+
+    out = add_folds(frame, n_folds=5, seed=124)
+
+    assert out["fold"].between(0, 4).all()
+    assert set(out["fold"]) == {0, 1}
 
 
 def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):

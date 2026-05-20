@@ -128,6 +128,12 @@ def add_folds(frame: pd.DataFrame, n_folds: int, seed: int) -> pd.DataFrame:
 
     frame = frame.copy()
     frame["fold"] = -1
+    counts = frame["primary_label"].astype(str).value_counts()
+    effective_folds = min(int(n_folds), len(frame), int(counts.min()))
+    if effective_folds < 2:
+        frame["fold"] = 0
+        return frame
+    n_folds = effective_folds
     splitter = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     y = frame["primary_label"].astype(str)
     for fold, (_, val_idx) in enumerate(splitter.split(frame, y)):
