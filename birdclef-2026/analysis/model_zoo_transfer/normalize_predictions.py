@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,36 @@ def load_internal_npz(item, backbone: LabelBackbone) -> NormalizedPrediction:
     )
 
 
+def load_public_cache_csv(item, backbone: LabelBackbone) -> NormalizedPrediction:
+    df = pd.read_csv(item.artifact_path)
+    if "row_id" not in df.columns:
+        raise ValueError(f"{item.artifact_path} has no row_id column")
+    missing = [cls for cls in backbone.classes if cls not in df.columns]
+    if missing:
+        raise ValueError(f"{item.model_id} missing class columns: {missing[:5]}")
+
+    aligned = df.set_index("row_id").reindex(backbone.row_ids)
+    present = aligned[backbone.classes].notna().all(axis=1).to_numpy()
+    if not present.any():
+        raise ValueError(f"{item.model_id} has no rows matching label backbone")
+
+    predictions = aligned.loc[present, backbone.classes].to_numpy(dtype=float)
+    return NormalizedPrediction(
+        model_id=item.model_id,
+        row_ids=backbone.row_ids[present],
+        classes=backbone.classes.copy(),
+        predictions=predictions,
+        source=item.source,
+        category=item.category,
+        known_lb=item.known_lb,
+        coverage=item.coverage,
+        artifact_path=str(item.artifact_path),
+    )
+
+
 def load_prediction(item, backbone: LabelBackbone) -> NormalizedPrediction | None:
     if item.source == "ours":
         return load_internal_npz(item, backbone)
+    if item.artifact_path.suffix == ".csv":
+        return load_public_cache_csv(item, backbone)
     return None

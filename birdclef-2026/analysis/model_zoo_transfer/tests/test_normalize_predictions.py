@@ -6,7 +6,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from registry import ModelArtifact
-from normalize_predictions import LabelBackbone, NormalizedPrediction, load_internal_npz
+from normalize_predictions import LabelBackbone, NormalizedPrediction, load_internal_npz, load_public_cache_csv
 
 
 def test_normalized_prediction_records_coverage_counts():
@@ -48,3 +48,20 @@ def test_load_internal_npz_aligns_to_backbone(tmp_path):
     assert pred.row_ids.tolist() == backbone.row_ids.tolist()
     assert pred.classes.tolist() == ["a", "b"]
     assert pred.predictions.shape == (2, 2)
+
+
+def test_load_public_cache_csv_reindexes_to_backbone(tmp_path):
+    cache = tmp_path / "submission.csv"
+    cache.write_text("row_id,a,b\nf2_10,0.8,0.2\nf1_5,0.1,0.9\n")
+    backbone = LabelBackbone(
+        row_ids=np.array(["f1_5", "f2_10"]),
+        classes=np.array(["a", "b"]),
+        labels=np.array([[1, 0], [0, 1]], dtype=np.float32),
+        filenames=np.array(["f1.ogg", "f2.ogg"]),
+        start_seconds=np.array([0, 5]),
+    )
+    item = ModelArtifact("public_toy", "public", "public_cache", cache, None, 0.947, "labeled")
+
+    pred = load_public_cache_csv(item, backbone)
+
+    assert pred.predictions.tolist() == [[0.1, 0.9], [0.8, 0.2]]
