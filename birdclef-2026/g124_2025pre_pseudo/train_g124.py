@@ -272,7 +272,10 @@ def build_model(
     else:
         raise last_error if last_error is not None else RuntimeError(f"could not create model {model_name}")
     if pretrained_checkpoint is None:
-        print("No 2025pre checkpoint supplied; training starts from random classifier/backbone weights.")
+        if timm_pretrained:
+            print("No BirdCLEF 2025pre checkpoint supplied; initializing backbone from timm pretrained weights.")
+        else:
+            print("No BirdCLEF 2025pre or timm pretrained weights supplied; training starts from random backbone weights.")
     if pretrained_checkpoint:
         ckpt = torch.load(pretrained_checkpoint, map_location="cpu")
         state = ckpt.get("state_dict", ckpt.get("model_state_dict", ckpt)) if isinstance(ckpt, dict) else ckpt
