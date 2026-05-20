@@ -34,6 +34,7 @@ def macro_auc(labels: np.ndarray, predictions: np.ndarray) -> float:
         if y.sum() == 0 or y.sum() == len(y):
             continue
         if predictions[:, col].min() == predictions[:, col].max():
+            aucs.append(0.5)
             continue
         aucs.append(roc_auc_score(y, predictions[:, col]))
     return float(np.mean(aucs)) if aucs else float("nan")

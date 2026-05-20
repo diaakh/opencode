@@ -5,7 +5,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from features import compute_feature_row, infer_sites, infer_hours, risk_tier
+from features import compute_feature_row, infer_sites, infer_hours, macro_auc, risk_tier
 from normalize_predictions import LabelBackbone, NormalizedPrediction
 
 
@@ -52,3 +52,20 @@ def test_compute_feature_row_has_expected_metrics():
     assert row["labeled_macro_auc"] == 1.0
     assert 0.0 <= row["entropy_mean"] <= 1.0
     assert row["risk_tier"] == "ceiling"
+
+
+def test_macro_auc_counts_constant_active_class_as_chance():
+    labels = np.array([
+        [0, 0],
+        [1, 1],
+        [0, 0],
+        [1, 1],
+    ], dtype=np.float32)
+    predictions = np.array([
+        [0.1, 0.5],
+        [0.8, 0.5],
+        [0.2, 0.5],
+        [0.9, 0.5],
+    ], dtype=np.float32)
+
+    assert macro_auc(labels, predictions) == 0.75
