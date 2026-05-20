@@ -210,6 +210,7 @@ def test_package_assets_writes_kaggle_metadata_filename(tmp_path):
     package_assets(args)
 
     assert (out / "datasets-metadata.json").exists()
+    assert (out / "dataset-metadata.json").exists()
     assert (out / "infer.py").exists()
     assert (out / "g124_fold1_fp16.pt").exists()
 
