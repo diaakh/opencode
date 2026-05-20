@@ -17,7 +17,8 @@ def build_smoke_argv() -> list[str]:
     _replace_flag(argv, "--epochs", "1")
     _replace_flag(argv, "--batch-size", "8")
     _replace_flag(argv, "--num-workers", "2")
-    _replace_flag(argv, "--max-train-files", "2")
+    _replace_flag(argv, "--max-train-files", "1")
+    _replace_flag(argv, "--model-name", "resnet18")
     if "--timm-pretrained" not in argv:
         argv.append("--timm-pretrained")
     return argv

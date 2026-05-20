@@ -292,7 +292,9 @@ def test_run_kaggle_smoke_uses_small_limits():
     assert "--epochs" in argv
     assert "1" in argv
     assert "--max-train-files" in argv
-    assert "2" in argv
+    assert "1" in argv
+    assert "--model-name" in argv
+    assert "resnet18" in argv
     assert "--timm-pretrained" in argv
 
 
