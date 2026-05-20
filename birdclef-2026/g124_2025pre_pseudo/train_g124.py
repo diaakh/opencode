@@ -141,6 +141,15 @@ def add_folds(frame: pd.DataFrame, n_folds: int, seed: int) -> pd.DataFrame:
     return frame
 
 
+def choose_validation_fold(frame: pd.DataFrame, requested_fold: int) -> int:
+    available = sorted(int(fold) for fold in frame["fold"].dropna().unique())
+    if requested_fold in available:
+        return requested_fold
+    if not available:
+        return 0
+    return available[0]
+
+
 class AudioDataset:
     def __init__(self, frame, classes, args, training: bool):
         self.frame = frame.reset_index(drop=True)
@@ -220,6 +229,13 @@ class MelFrontend:
         return ((mel - mean) / std).unsqueeze(1)
 
 
+def model_name_candidates(model_name: str) -> list[str]:
+    candidates = [model_name]
+    if "." in model_name:
+        candidates.append(model_name.split(".", 1)[0])
+    return list(dict.fromkeys(candidates))
+
+
 def build_model(
     model_name: str,
     num_classes: int,
@@ -229,7 +245,21 @@ def build_model(
     import timm
     import torch
 
-    model = timm.create_model(model_name, pretrained=timm_pretrained and pretrained_checkpoint is None, in_chans=1, num_classes=num_classes)
+    last_error = None
+    for candidate_name in model_name_candidates(model_name):
+        try:
+            model = timm.create_model(
+                candidate_name,
+                pretrained=timm_pretrained and pretrained_checkpoint is None,
+                in_chans=1,
+                num_classes=num_classes,
+            )
+            model_name = candidate_name
+            break
+        except RuntimeError as exc:
+            last_error = exc
+    else:
+        raise last_error if last_error is not None else RuntimeError(f"could not create model {model_name}")
     if pretrained_checkpoint is None:
         print("No 2025pre checkpoint supplied; training starts from random classifier/backbone weights.")
     if pretrained_checkpoint:
@@ -251,8 +281,9 @@ def train(args: argparse.Namespace) -> Path:
     classes = load_classes(competition_dir)
     frame = build_train_audio_frame(competition_dir, classes, max_files=args.max_train_files)
     frame = add_folds(frame, args.n_folds, args.seed)
-    train_frame = frame[frame["fold"] != args.fold].reset_index(drop=True)
-    val_frame = frame[frame["fold"] == args.fold].reset_index(drop=True)
+    validation_fold = choose_validation_fold(frame, args.fold)
+    train_frame = frame[frame["fold"] != validation_fold].reset_index(drop=True)
+    val_frame = frame[frame["fold"] == validation_fold].reset_index(drop=True)
     pseudo_frame = build_pseudo_frame(args.pseudo_csv, competition_dir, classes, args.pseudo_weight)
     if not pseudo_frame.empty:
         train_frame = pd.concat([train_frame, pseudo_frame], ignore_index=True)

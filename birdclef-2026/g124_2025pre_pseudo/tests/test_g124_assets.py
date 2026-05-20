@@ -22,6 +22,8 @@ from run_kaggle_smoke import build_smoke_argv
 from kaggle_launcher import find_code_root
 from train_g124 import build_parser as build_train_parser
 from train_g124 import add_folds
+from train_g124 import choose_validation_fold
+from train_g124 import model_name_candidates
 from train_g124 import parse_soundscape_row_id
 
 
@@ -235,6 +237,19 @@ def test_add_folds_handles_classes_with_fewer_examples_than_folds():
 
     assert out["fold"].between(0, 4).all()
     assert set(out["fold"]) == {0, 1}
+
+
+def test_choose_validation_fold_falls_back_to_available_fold():
+    frame = pd.DataFrame({"fold": [0, 0, 0]})
+
+    assert choose_validation_fold(frame, requested_fold=1) == 0
+
+
+def test_model_name_candidates_strip_invalid_timm_tag():
+    assert model_name_candidates("tf_efficientnetv2_s.in21ft1k") == [
+        "tf_efficientnetv2_s.in21ft1k",
+        "tf_efficientnetv2_s",
+    ]
 
 
 def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):
