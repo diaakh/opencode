@@ -150,6 +150,17 @@ def choose_validation_fold(frame: pd.DataFrame, requested_fold: int) -> int:
     return available[0]
 
 
+def split_train_val(frame: pd.DataFrame, requested_fold: int) -> tuple[pd.DataFrame, pd.DataFrame, int]:
+    validation_fold = choose_validation_fold(frame, requested_fold)
+    val_frame = frame[frame["fold"] == validation_fold].reset_index(drop=True)
+    train_frame = frame[frame["fold"] != validation_fold].reset_index(drop=True)
+    if train_frame.empty:
+        train_frame = frame.reset_index(drop=True)
+    if val_frame.empty:
+        val_frame = frame.reset_index(drop=True)
+    return train_frame, val_frame, validation_fold
+
+
 class AudioDataset:
     def __init__(self, frame, classes, args, training: bool):
         self.frame = frame.reset_index(drop=True)
@@ -270,6 +281,21 @@ def build_model(
     return model
 
 
+def choose_torch_device():
+    import torch
+
+    if not torch.cuda.is_available():
+        return torch.device("cpu")
+    try:
+        device = torch.device("cuda")
+        _ = torch.zeros(1, device=device) + 1
+        torch.cuda.synchronize()
+        return device
+    except Exception as exc:
+        print(f"CUDA unavailable for this torch/image/GPU combination; falling back to CPU: {exc}")
+        return torch.device("cpu")
+
+
 def train(args: argparse.Namespace) -> Path:
     import torch
     from torch.utils.data import DataLoader
@@ -281,9 +307,7 @@ def train(args: argparse.Namespace) -> Path:
     classes = load_classes(competition_dir)
     frame = build_train_audio_frame(competition_dir, classes, max_files=args.max_train_files)
     frame = add_folds(frame, args.n_folds, args.seed)
-    validation_fold = choose_validation_fold(frame, args.fold)
-    train_frame = frame[frame["fold"] != validation_fold].reset_index(drop=True)
-    val_frame = frame[frame["fold"] == validation_fold].reset_index(drop=True)
+    train_frame, val_frame, validation_fold = split_train_val(frame, args.fold)
     pseudo_frame = build_pseudo_frame(args.pseudo_csv, competition_dir, classes, args.pseudo_weight)
     if not pseudo_frame.empty:
         train_frame = pd.concat([train_frame, pseudo_frame], ignore_index=True)
@@ -292,7 +316,7 @@ def train(args: argparse.Namespace) -> Path:
         f"pseudo={len(pseudo_frame)} classes={len(classes)}"
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = choose_torch_device()
     model = build_model(args.model_name, len(classes), args.pretrained_checkpoint, args.timm_pretrained).to(device)
     model = model.to(memory_format=torch.channels_last)
     frontend = MelFrontend(args, device)

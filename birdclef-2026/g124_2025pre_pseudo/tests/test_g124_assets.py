@@ -24,6 +24,7 @@ from train_g124 import build_parser as build_train_parser
 from train_g124 import add_folds
 from train_g124 import choose_validation_fold
 from train_g124 import model_name_candidates
+from train_g124 import split_train_val
 from train_g124 import parse_soundscape_row_id
 
 
@@ -243,6 +244,16 @@ def test_choose_validation_fold_falls_back_to_available_fold():
     frame = pd.DataFrame({"fold": [0, 0, 0]})
 
     assert choose_validation_fold(frame, requested_fold=1) == 0
+
+
+def test_split_train_val_reuses_single_fold_for_smoke():
+    frame = pd.DataFrame({"fold": [0, 0, 0], "path": ["a", "b", "c"]})
+
+    train_frame, val_frame, fold = split_train_val(frame, requested_fold=1)
+
+    assert fold == 0
+    assert len(train_frame) == 3
+    assert len(val_frame) == 3
 
 
 def test_model_name_candidates_strip_invalid_timm_tag():
