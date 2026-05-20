@@ -142,6 +142,8 @@ def _write_report(df: pd.DataFrame, corr: pd.DataFrame, loo: pd.DataFrame, path:
         "",
         "## Leave-One-Out Validation",
         "",
+        _validation_summary(loo),
+        "",
         _markdown_table(loo_table)
         if not loo_table.empty
         else "Not enough known-LB models or usable numeric features for leave-one-out validation.",
@@ -153,10 +155,21 @@ def _write_report(df: pd.DataFrame, corr: pd.DataFrame, loo: pd.DataFrame, path:
     path.write_text("\n".join(lines) + "\n")
 
 
+def _validation_summary(loo: pd.DataFrame) -> str:
+    if loo.empty:
+        return ""
+    return (
+        f"MAE: {loo['absolute_error'].mean():.4f}; "
+        f"median absolute error: {loo['absolute_error'].median():.4f}; "
+        f"max absolute error: {loo['absolute_error'].max():.4f}."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default="birdclef-2026")
     parser.add_argument("--out-dir", default="birdclef-2026/analysis/model_zoo_transfer")
+    parser.add_argument("--public-output-root", default=None)
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -164,7 +177,8 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     backbone = load_label_backbone(root / "analysis" / "entropy_tta" / "exp019_aligned.npz")
-    registry = default_registry(root)
+    public_output_root = Path(args.public_output_root) if args.public_output_root else None
+    registry = default_registry(root, public_output_root=public_output_root)
     loaded = [load_prediction(item, backbone) for item in registry]
     predictions = [item for item in loaded if item is not None]
 
