@@ -125,20 +125,18 @@ def build_pseudo_frame(pseudo_csv: str | None, competition_dir: Path, classes: l
 
 
 def add_folds(frame: pd.DataFrame, n_folds: int, seed: int) -> pd.DataFrame:
-    from sklearn.model_selection import StratifiedKFold
-
     frame = frame.copy()
     frame["fold"] = -1
-    counts = frame["primary_label"].astype(str).value_counts()
-    effective_folds = min(int(n_folds), len(frame), int(counts.min()))
-    if effective_folds < 2:
-        frame["fold"] = 0
-        return frame
-    n_folds = effective_folds
-    splitter = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
-    y = frame["primary_label"].astype(str)
-    for fold, (_, val_idx) in enumerate(splitter.split(frame, y)):
-        frame.loc[frame.index[val_idx], "fold"] = fold
+    rng = np.random.default_rng(seed)
+    n_folds = max(int(n_folds), 2)
+    for _label, group in frame.groupby(frame["primary_label"].astype(str), sort=False):
+        indices = group.index.to_numpy().copy()
+        rng.shuffle(indices)
+        if len(indices) == 1:
+            frame.loc[indices, "fold"] = 0
+            continue
+        for offset, idx in enumerate(indices):
+            frame.loc[idx, "fold"] = offset % min(n_folds, len(indices))
     return frame
 
 

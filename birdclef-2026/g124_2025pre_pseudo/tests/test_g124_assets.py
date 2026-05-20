@@ -26,6 +26,8 @@ from train_g124 import choose_validation_fold
 from train_g124 import model_name_candidates
 from train_g124 import split_train_val
 from train_g124 import parse_soundscape_row_id
+from build_teacher_pseudo import safe_auc
+from build_teacher_pseudo import teacher_weights
 
 
 def test_find_asset_dir_requires_infer_and_checkpoint(tmp_path):
@@ -240,6 +242,22 @@ def test_add_folds_handles_classes_with_fewer_examples_than_folds():
     assert set(out["fold"]) == {0, 1}
 
 
+def test_add_folds_does_not_collapse_when_one_class_has_one_example():
+    frame = pd.DataFrame(
+        {
+            "path": [f"a_{idx}.ogg" for idx in range(10)] + ["rare.ogg"],
+            "primary_label": ["a"] * 10 + ["rare"],
+        }
+    )
+
+    out = add_folds(frame, n_folds=5, seed=124)
+    train_frame, val_frame, fold = split_train_val(out, requested_fold=1)
+
+    assert fold == 1
+    assert 0 < len(val_frame) < len(out)
+    assert "rare" in set(train_frame["primary_label"])
+
+
 def test_choose_validation_fold_falls_back_to_available_fold():
     frame = pd.DataFrame({"fold": [0, 0, 0]})
 
@@ -267,6 +285,7 @@ def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):
     monkeypatch.setenv("G124_COMPETITION_DIR", "/kaggle/input/birdclef-2026")
     monkeypatch.setenv("G124_EPOCHS", "3")
     monkeypatch.setenv("G124_PSEUDO_CSV", "/kaggle/input/pseudo/pseudo.csv")
+    monkeypatch.setenv("G124_LR", "5e-5")
 
     argv = build_default_argv()
 
@@ -276,6 +295,8 @@ def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):
     assert "3" in argv
     assert "--pseudo-csv" in argv
     assert "/kaggle/input/pseudo/pseudo.csv" in argv
+    assert "--lr" in argv
+    assert "5e-5" in argv
 
 
 def test_run_kaggle_train_can_enable_timm_pretrained(monkeypatch):
@@ -304,3 +325,39 @@ def test_kaggle_launcher_finds_code_dataset_root(tmp_path):
     (root / "train_g124.py").write_text("print('ok')\n")
 
     assert find_code_root([tmp_path]) == root
+
+
+def test_teacher_weights_only_uses_classes_where_teacher_is_better():
+    y = np.array(
+        [
+            [0, 0],
+            [0, 1],
+            [1, 0],
+            [1, 1],
+        ],
+        dtype=np.float32,
+    )
+    anchor = np.array(
+        [
+            [0.1, 0.1],
+            [0.2, 0.9],
+            [0.8, 0.2],
+            [0.9, 0.8],
+        ],
+        dtype=np.float32,
+    )
+    teacher = np.array(
+        [
+            [0.1, 0.9],
+            [0.2, 0.1],
+            [0.7, 0.8],
+            [0.8, 0.2],
+        ],
+        dtype=np.float32,
+    )
+
+    report = teacher_weights(y, anchor, teacher, ["good", "bad"], 0.25, 0.10, 0.50)
+
+    assert safe_auc(y[:, 0], teacher[:, 0]) >= safe_auc(y[:, 0], anchor[:, 0])
+    assert report.loc[report["class"] == "good", "teacher_weight"].item() >= 0.0
+    assert report.loc[report["class"] == "bad", "teacher_weight"].item() == 0.0

@@ -35,6 +35,9 @@ def build_default_argv() -> list[str]:
         ("G124_PRETRAINED_CHECKPOINT", "--pretrained-checkpoint"),
         ("G124_PSEUDO_CSV", "--pseudo-csv"),
         ("G124_MAX_TRAIN_FILES", "--max-train-files"),
+        ("G124_LR", "--lr"),
+        ("G124_PSEUDO_WEIGHT", "--pseudo-weight"),
+        ("G124_GRAD_CLIP", "--grad-clip"),
     ]
     for env_name, flag in optional:
         value = os.environ.get(env_name)
