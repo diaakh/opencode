@@ -12,6 +12,17 @@ from normalize_predictions import load_label_backbone, load_prediction
 from registry import default_registry
 
 
+LEAVE_ONE_OUT_COLUMNS = [
+    "model_id",
+    "actual_lb",
+    "predicted_lb",
+    "absolute_error",
+    "nearest_model",
+    "usable_features",
+]
+METADATA_COLUMNS = {"model_id", "source", "category", "coverage", "risk_tier", "known_lb"}
+
+
 def _markdown_table(frame: pd.DataFrame, index: bool = False) -> str:
     if frame.empty:
         return ""
@@ -55,11 +66,65 @@ def _correlations(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("spearman", ascending=False)
 
 
-def _write_report(df: pd.DataFrame, corr: pd.DataFrame, path: Path) -> None:
+def _leave_one_out(df: pd.DataFrame) -> pd.DataFrame:
+    known = df[df["known_lb"].notna()].copy()
+    if len(known) < 2:
+        return pd.DataFrame(columns=LEAVE_ONE_OUT_COLUMNS)
+
+    feature_frame = pd.DataFrame(index=known.index)
+    for col in known.columns:
+        if col in METADATA_COLUMNS:
+            continue
+        values = pd.to_numeric(known[col], errors="coerce")
+        if values.notna().any():
+            feature_frame[col] = values
+
+    rows = []
+    for heldout_idx, heldout in known.iterrows():
+        train = known.drop(index=heldout_idx)
+        train_features = feature_frame.loc[train.index]
+        heldout_features = feature_frame.loc[heldout_idx]
+
+        finite_train = np.isfinite(train_features).all(axis=0)
+        finite_heldout = np.isfinite(heldout_features)
+        std = train_features.loc[:, finite_train].std(axis=0, ddof=0)
+        usable = finite_train & finite_heldout & (std > 0)
+        usable_cols = usable[usable].index.tolist()
+        if not usable_cols:
+            continue
+
+        train_values = train_features[usable_cols]
+        heldout_values = heldout_features[usable_cols]
+        mean = train_values.mean(axis=0)
+        std = train_values.std(axis=0, ddof=0)
+        train_scaled = (train_values - mean) / std
+        heldout_scaled = (heldout_values - mean) / std
+        distances = np.sqrt(((train_scaled - heldout_scaled) ** 2).sum(axis=1))
+        nearest_idx = distances.idxmin()
+        predicted_lb = float(known.loc[nearest_idx, "known_lb"])
+        actual_lb = float(heldout["known_lb"])
+        rows.append(
+            {
+                "model_id": heldout["model_id"],
+                "actual_lb": actual_lb,
+                "predicted_lb": predicted_lb,
+                "absolute_error": abs(actual_lb - predicted_lb),
+                "nearest_model": known.loc[nearest_idx, "model_id"],
+                "usable_features": len(usable_cols),
+            }
+        )
+
+    if not rows:
+        return pd.DataFrame(columns=LEAVE_ONE_OUT_COLUMNS)
+    return pd.DataFrame(rows, columns=LEAVE_ONE_OUT_COLUMNS)
+
+
+def _write_report(df: pd.DataFrame, corr: pd.DataFrame, loo: pd.DataFrame, path: Path) -> None:
     known_lb = df[df["known_lb"].notna()]
     known_lb_table = known_lb[
         ["model_id", "category", "known_lb", "labeled_macro_auc", "site_gap", "risk_tier"]
     ].sort_values("known_lb", ascending=False)
+    loo_table = loo.sort_values("absolute_error", ascending=False) if not loo.empty else loo
 
     lines = [
         "# BirdCLEF Model Zoo Transfer Report",
@@ -74,6 +139,12 @@ def _write_report(df: pd.DataFrame, corr: pd.DataFrame, path: Path) -> None:
         "## Top LB-Correlated Features",
         "",
         _markdown_table(corr.head(15)) if not corr.empty else "Not enough known-LB models for correlations.",
+        "",
+        "## Leave-One-Out Validation",
+        "",
+        _markdown_table(loo_table)
+        if not loo_table.empty
+        else "Not enough known-LB models or usable numeric features for leave-one-out validation.",
         "",
         "## Known-LB Models",
         "",
@@ -105,10 +176,12 @@ def main() -> None:
     rows = [compute_feature_row(pred, backbone, anchors) for pred in predictions]
     df = pd.DataFrame(rows)
     corr = _correlations(df)
+    loo = _leave_one_out(df)
 
     df.to_csv(out_dir / "model_zoo_features.csv", index=False)
     corr.to_csv(out_dir / "model_zoo_feature_correlations.csv", index=False)
-    _write_report(df, corr, out_dir / "model_zoo_report.md")
+    loo.to_csv(out_dir / "model_zoo_leave_one_out.csv", index=False)
+    _write_report(df, corr, loo, out_dir / "model_zoo_report.md")
 
 
 if __name__ == "__main__":

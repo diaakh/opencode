@@ -12,6 +12,7 @@ Outputs:
 
 - `model_zoo_features.csv`
 - `model_zoo_feature_correlations.csv`
+- `model_zoo_leave_one_out.csv`
 - `model_zoo_report.md`
 
 ## Scope

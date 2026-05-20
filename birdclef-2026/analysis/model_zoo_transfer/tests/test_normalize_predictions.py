@@ -82,7 +82,7 @@ def test_load_prediction_skips_public_cache_csv_with_no_matching_rows(tmp_path):
     assert load_prediction(item, backbone) is None
 
 
-def test_load_prediction_skips_public_cache_csv_with_partial_matching_rows(tmp_path):
+def test_load_prediction_keeps_public_cache_csv_with_partial_matching_rows(tmp_path):
     cache = tmp_path / "submission.csv"
     cache.write_text("row_id,a,b\nf1_5,0.8,0.2\n")
     backbone = LabelBackbone(
@@ -94,4 +94,8 @@ def test_load_prediction_skips_public_cache_csv_with_partial_matching_rows(tmp_p
     )
     item = ModelArtifact("public_toy", "public", "public_cache", cache, None, 0.947, "labeled")
 
-    assert load_prediction(item, backbone) is None
+    pred = load_prediction(item, backbone)
+
+    assert pred is not None
+    assert pred.row_ids.tolist() == ["f1_5"]
+    assert pred.predictions.tolist() == [[0.8, 0.2]]

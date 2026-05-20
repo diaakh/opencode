@@ -76,32 +76,44 @@ def risk_tier(labeled_macro_auc: float, known_lb: float | None, site_gap: float)
     return "risky"
 
 
-def _validate_alignment(pred, backbone) -> None:
-    if pred.predictions.shape != backbone.labels.shape:
+def _aligned_labels(pred, backbone) -> np.ndarray:
+    if pred.predictions.ndim != 2:
+        raise ValueError(f"{pred.model_id} predictions must be a 2D matrix")
+    if pred.row_ids.shape[0] != pred.predictions.shape[0]:
         raise ValueError(
-            f"{pred.model_id} prediction shape {pred.predictions.shape} does not match "
-            f"backbone label shape {backbone.labels.shape}"
+            f"{pred.model_id} has {pred.row_ids.shape[0]} row_ids but "
+            f"{pred.predictions.shape[0]} prediction rows"
         )
-    if pred.row_ids.shape[0] != backbone.row_ids.shape[0]:
+    if len(set(pred.row_ids.tolist())) != pred.row_ids.shape[0]:
+        raise ValueError(f"{pred.model_id} has duplicate row_ids")
+    if pred.classes.shape[0] != pred.predictions.shape[1]:
         raise ValueError(
-            f"{pred.model_id} has {pred.row_ids.shape[0]} row_ids but backbone has "
-            f"{backbone.row_ids.shape[0]}"
-        )
-    if not np.array_equal(pred.row_ids, backbone.row_ids):
-        raise ValueError(f"{pred.model_id} row_ids do not align with backbone row_ids")
-    if pred.classes.shape[0] != backbone.classes.shape[0]:
-        raise ValueError(
-            f"{pred.model_id} has {pred.classes.shape[0]} classes but backbone has "
-            f"{backbone.classes.shape[0]}"
+            f"{pred.model_id} has {pred.classes.shape[0]} classes but "
+            f"{pred.predictions.shape[1]} prediction columns"
         )
     if not np.array_equal(pred.classes, backbone.classes):
         raise ValueError(f"{pred.model_id} classes do not align with backbone classes")
 
+    backbone_index = {row_id: idx for idx, row_id in enumerate(backbone.row_ids.tolist())}
+    if len(backbone_index) != backbone.row_ids.shape[0]:
+        raise ValueError("backbone has duplicate row_ids")
+
+    indices = []
+    for row_id in pred.row_ids.tolist():
+        if row_id not in backbone_index:
+            raise ValueError(f"{pred.model_id} row_id {row_id} is not in backbone row_ids")
+        indices.append(backbone_index[row_id])
+    labels = backbone.labels[np.array(indices, dtype=int)]
+    if labels.shape != pred.predictions.shape:
+        raise ValueError(
+            f"{pred.model_id} prediction shape {pred.predictions.shape} does not match "
+            f"aligned label shape {labels.shape}"
+        )
+    return labels
+
 
 def compute_feature_row(pred, backbone, anchors: dict[str, np.ndarray]) -> dict[str, float | str | int | None]:
-    _validate_alignment(pred, backbone)
-
-    labels = backbone.labels
+    labels = _aligned_labels(pred, backbone)
     predictions = np.clip(pred.predictions.astype(np.float32), 1e-6, 1 - 1e-6)
     sites = infer_sites(pred.row_ids)
     hours = infer_hours(pred.row_ids)

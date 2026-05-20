@@ -25,6 +25,14 @@ Models with known LB: 3
 | probability_p99 | 3 | 0.9280817498712801 | 0.5 |
 | site_gap | 3 | -0.9759968105267718 | -1.0 |
 
+## Leave-One-Out Validation
+
+| model_id | actual_lb | predicted_lb | absolute_error | nearest_model | usable_features |
+| --- | --- | --- | --- | --- | --- |
+| v73_rag | 0.941 | 0.949 | 0.008000000000000007 | exp019 | 9 |
+| birdmae | 0.946 | 0.941 | 0.0050000000000000044 | v73_rag | 9 |
+| exp019 | 0.949 | 0.946 | 0.0030000000000000027 | birdmae | 9 |
+
 ## Known-LB Models
 
 | model_id | category | known_lb | labeled_macro_auc | site_gap | risk_tier |

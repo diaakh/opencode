@@ -54,6 +54,37 @@ def test_compute_feature_row_has_expected_metrics():
     assert row["risk_tier"] == "ceiling"
 
 
+def test_compute_feature_row_aligns_partial_prediction_rows_to_backbone():
+    backbone = LabelBackbone(
+        row_ids=np.array([
+            "BC2026_Train_0001_S22_20211231_201500_5",
+            "BC2026_Train_0002_S08_20250606_030007_5",
+        ]),
+        classes=np.array(["a", "b"]),
+        labels=np.array([[1, 0], [0, 1]], dtype=np.float32),
+        filenames=np.array(["f1.ogg", "f2.ogg"]),
+        start_seconds=np.array([0, 0]),
+    )
+    pred = NormalizedPrediction(
+        model_id="partial",
+        row_ids=np.array(["BC2026_Train_0002_S08_20250606_030007_5"]),
+        classes=backbone.classes,
+        predictions=np.array([[0.2, 0.9]], dtype=np.float32),
+        source="public",
+        category="public_cache",
+        known_lb=0.91,
+        coverage="labeled",
+        artifact_path="submission.csv",
+    )
+
+    row = compute_feature_row(pred, backbone, anchors={})
+
+    assert row["coverage_labeled_rows"] == 1
+    assert row["coverage_classes"] == 2
+    assert row["n_sites"] == 1
+    assert np.isfinite(row["entropy_mean"])
+
+
 def test_macro_auc_counts_constant_active_class_as_chance():
     labels = np.array([
         [0, 0],

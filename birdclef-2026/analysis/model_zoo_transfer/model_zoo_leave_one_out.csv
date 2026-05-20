@@ -1,0 +1,4 @@
+model_id,actual_lb,predicted_lb,absolute_error,nearest_model,usable_features
+exp019,0.949,0.946,0.0030000000000000027,birdmae,9
+birdmae,0.946,0.941,0.0050000000000000044,v73_rag,9
+v73_rag,0.941,0.949,0.008000000000000007,exp019,9
