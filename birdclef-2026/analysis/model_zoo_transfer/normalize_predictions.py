@@ -83,3 +83,9 @@ def load_internal_npz(item, backbone: LabelBackbone) -> NormalizedPrediction:
         coverage=item.coverage,
         artifact_path=str(item.artifact_path),
     )
+
+
+def load_prediction(item, backbone: LabelBackbone) -> NormalizedPrediction | None:
+    if item.source == "ours":
+        return load_internal_npz(item, backbone)
+    return None
