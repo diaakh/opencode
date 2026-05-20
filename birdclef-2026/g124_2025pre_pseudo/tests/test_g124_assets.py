@@ -15,6 +15,7 @@ from g124_assets import (
 )
 from infer import build_parser
 from package_assets import build_dataset_metadata
+from run_kaggle_train import build_default_argv
 from train_g124 import build_parser as build_train_parser
 from train_g124 import parse_soundscape_row_id
 
@@ -188,3 +189,18 @@ def test_parse_soundscape_row_id_recovers_filename_and_start():
 
     assert filename == "BC2026_Train_0001_S08_20250606_030007.ogg"
     assert start == 30.0
+
+
+def test_run_kaggle_train_builds_default_argv_from_environment(monkeypatch):
+    monkeypatch.setenv("G124_COMPETITION_DIR", "/kaggle/input/birdclef-2026")
+    monkeypatch.setenv("G124_EPOCHS", "3")
+    monkeypatch.setenv("G124_PSEUDO_CSV", "/kaggle/input/pseudo/pseudo.csv")
+
+    argv = build_default_argv()
+
+    assert "--competition-dir" in argv
+    assert "/kaggle/input/birdclef-2026" in argv
+    assert "--epochs" in argv
+    assert "3" in argv
+    assert "--pseudo-csv" in argv
+    assert "/kaggle/input/pseudo/pseudo.csv" in argv
