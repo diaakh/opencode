@@ -1,0 +1,18 @@
+{
+  "id": "diaakh/birdclef-2026-g124-2025pre-pseudo-train",
+  "title": "BirdCLEF 2026 G124 2025pre Pseudo Train",
+  "code_file": "train_g124.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "birdclef-2026"
+  ],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": []
+}
