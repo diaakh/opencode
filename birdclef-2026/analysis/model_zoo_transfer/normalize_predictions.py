@@ -98,11 +98,13 @@ def load_public_cache_csv(item, backbone: LabelBackbone) -> NormalizedPrediction
     present = aligned[backbone.classes].notna().all(axis=1).to_numpy()
     if not present.any():
         raise ValueError(f"{item.model_id} has no rows matching label backbone")
+    if not present.all():
+        raise ValueError(f"{item.model_id} has incomplete label backbone coverage")
 
-    predictions = aligned.loc[present, backbone.classes].to_numpy(dtype=float)
+    predictions = aligned.loc[:, backbone.classes].to_numpy(dtype=float)
     return NormalizedPrediction(
         model_id=item.model_id,
-        row_ids=backbone.row_ids[present],
+        row_ids=backbone.row_ids.copy(),
         classes=backbone.classes.copy(),
         predictions=predictions,
         source=item.source,
