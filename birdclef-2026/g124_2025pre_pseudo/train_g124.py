@@ -99,6 +99,31 @@ def build_pseudo_frame(pseudo_csv: str | None, competition_dir: Path, classes: l
     df = pd.read_csv(pseudo_path)
     if "row_id" not in df.columns:
         raise ValueError(f"{pseudo_path} has no row_id column")
+    if "primary_label" in df.columns:
+        rows = []
+        train_soundscapes = competition_dir / "train_soundscapes"
+        class_set = set(classes)
+        for _, row in df.iterrows():
+            label = str(row["primary_label"])
+            if label not in class_set:
+                continue
+            filename, start_seconds = parse_soundscape_row_id(str(row["row_id"]))
+            path = train_soundscapes / filename
+            if not path.exists():
+                continue
+            confidence = float(row.get("confidence", 1.0))
+            if not np.isfinite(confidence):
+                confidence = 1.0
+            rows.append(
+                {
+                    "path": str(path),
+                    "primary_label": label,
+                    "source": "hard_pseudo_soundscape",
+                    "start_seconds": start_seconds,
+                    "sample_weight": float(weight) * float(np.clip(confidence, 0.0, 1.0)),
+                }
+            )
+        return pd.DataFrame(rows)
     missing = [label for label in classes if label not in df.columns]
     if missing:
         raise ValueError(f"{pseudo_path} missing class columns: {missing[:5]}")

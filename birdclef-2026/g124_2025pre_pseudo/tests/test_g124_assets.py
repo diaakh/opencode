@@ -14,6 +14,7 @@ from g124_assets import (
     validate_submission_frame,
 )
 from infer import build_parser
+from infer import _calibrate_batch_probs
 from infer import model_name_candidates as infer_model_name_candidates
 from package_assets import build_dataset_metadata
 from package_assets import build_parser as build_package_parser
@@ -21,8 +22,10 @@ from package_assets import package_assets
 from run_kaggle_train import build_default_argv
 from run_kaggle_smoke import build_smoke_argv
 from kaggle_launcher import find_code_root
+from build_hard_pseudo import class_thresholds
 from train_g124 import build_parser as build_train_parser
 from train_g124 import add_folds
+from train_g124 import build_pseudo_frame
 from train_g124 import choose_validation_fold
 from train_g124 import model_name_candidates
 from train_g124 import split_train_val
@@ -157,6 +160,9 @@ def test_infer_parser_accepts_s124_sidecar_arguments(tmp_path):
     assert args.batch_size == 64
     assert args.fast_fixed_60s is True
     assert args.checkpoint == [str(tmp_path / "g124_fold1_fp16.pt")]
+    assert args.logit_temperature == 1.0
+    assert args.logit_bias == 0.0
+    assert args.keep_topk == 0
 
 
 def test_infer_model_name_candidates_match_training_fallback():
@@ -164,6 +170,39 @@ def test_infer_model_name_candidates_match_training_fallback():
         "tf_efficientnetv2_s.in21ft1k",
         "tf_efficientnetv2_s",
     ]
+
+
+def test_calibrate_batch_probs_can_match_sparse_sidecar_shape():
+    import torch
+
+    args = build_parser().parse_args(
+        [
+            "--data-dir",
+            "data",
+            "--input-dir",
+            "audio",
+            "--output",
+            "submission.csv",
+            "--checkpoint",
+            "g124_fold1_fp16.pt",
+            "--logit-temperature",
+            "0.18",
+            "--logit-bias",
+            "1.825",
+            "--keep-topk",
+            "2",
+            "--prob-floor",
+            "1e-5",
+        ]
+    )
+    logits = torch.tensor([[4.0, 3.0, 0.0, -1.0], [0.5, 5.0, 1.0, -2.0]])
+
+    probs = _calibrate_batch_probs(logits, args)
+
+    assert probs.shape == (2, 4)
+    assert np.isfinite(probs).all()
+    assert (probs == np.float32(1e-5)).sum() == 4
+    assert (probs > 0.05).sum() <= 4
 
 
 def test_train_parser_supports_2025_pretrain_and_2026_pseudo_modes(tmp_path):
@@ -235,6 +274,42 @@ def test_parse_soundscape_row_id_recovers_filename_and_start():
 
     assert filename == "BC2026_Train_0001_S08_20250606_030007.ogg"
     assert start == 30.0
+
+
+def test_build_pseudo_frame_accepts_hard_pseudo_labels(tmp_path):
+    competition = tmp_path / "birdclef-2026"
+    soundscapes = competition / "train_soundscapes"
+    soundscapes.mkdir(parents=True)
+    (soundscapes / "BC2026_Train_0001_S08_20250606_030007.ogg").write_bytes(b"audio")
+    pseudo = tmp_path / "hard_pseudo.csv"
+    pd.DataFrame(
+        {
+            "row_id": ["BC2026_Train_0001_S08_20250606_030007_35"],
+            "primary_label": ["bird_a"],
+            "confidence": [0.8],
+        }
+    ).to_csv(pseudo, index=False)
+
+    out = build_pseudo_frame(str(pseudo), competition, ["bird_a", "bird_b"], weight=0.5)
+
+    assert len(out) == 1
+    assert out.loc[0, "primary_label"] == "bird_a"
+    assert out.loc[0, "start_seconds"] == 30.0
+    assert out.loc[0, "sample_weight"] == 0.4
+
+
+def test_class_thresholds_are_lower_for_rare_classes(tmp_path):
+    competition = tmp_path / "birdclef-2026"
+    for label, n_files in {"rare": 1, "common": 4}.items():
+        label_dir = competition / "train_audio" / label
+        label_dir.mkdir(parents=True)
+        for idx in range(n_files):
+            (label_dir / f"{idx}.ogg").write_bytes(b"audio")
+
+    thresholds = class_thresholds(competition, ["rare", "common"], min_thresh=0.55, max_thresh=0.99)
+
+    assert thresholds["rare"] == 0.55
+    assert thresholds["common"] == 0.99
 
 
 def test_add_folds_handles_classes_with_fewer_examples_than_folds():

@@ -26,6 +26,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tta-shifts", type=int, default=0)
     parser.add_argument("--prior-weight", type=float, default=0.0)
     parser.add_argument("--smooth-weight", type=float, default=0.0)
+    parser.add_argument("--logit-temperature", type=float, default=1.0)
+    parser.add_argument("--logit-bias", type=float, default=0.0)
+    parser.add_argument("--keep-topk", type=int, default=0)
+    parser.add_argument("--prob-floor", type=float, default=0.0)
     parser.add_argument("--disable-context-postprocess", action="store_true")
     parser.add_argument("--fast-fixed-60s", action="store_true")
     parser.add_argument("--assume-sr", type=int, default=32000)
@@ -142,6 +146,23 @@ def _wave_to_model_input(wave_batch, mel_transform, device):
     return mel.unsqueeze(1)
 
 
+def _calibrate_batch_probs(logits, args) -> np.ndarray:
+    import torch
+
+    temperature = max(float(args.logit_temperature), 1e-6)
+    bias = float(args.logit_bias)
+    probs = torch.sigmoid((logits - bias) / temperature).detach().cpu().numpy().astype(np.float32)
+    keep_topk = int(args.keep_topk)
+    if keep_topk > 0 and keep_topk < probs.shape[1]:
+        floor = float(np.clip(args.prob_floor, 0.0, 1.0))
+        sparse = np.full_like(probs, floor, dtype=np.float32)
+        top_idx = np.argpartition(probs, -keep_topk, axis=1)[:, -keep_topk:]
+        rows = np.arange(probs.shape[0])[:, None]
+        sparse[rows, top_idx] = probs[rows, top_idx]
+        probs = sparse
+    return probs
+
+
 def run_inference(args: argparse.Namespace) -> pd.DataFrame:
     import torch
 
@@ -193,7 +214,7 @@ def run_inference(args: argparse.Namespace) -> pd.DataFrame:
                 end = min(start + args.batch_size, len(wave_all))
                 x = _wave_to_model_input(wave_all[start:end], mel_transform, device)
                 logits = model(x)
-                batch_probs = torch.sigmoid(logits).detach().cpu().numpy().astype(np.float32)
+                batch_probs = _calibrate_batch_probs(logits, args)
                 probs[row_indices_np[start:end]] = batch_probs
             all_probs += probs / max(len(args.checkpoint), 1)
             del model
