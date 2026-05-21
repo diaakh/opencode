@@ -82,7 +82,16 @@ def _build_model(model_name: str, num_classes: int, checkpoint_path: Path):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     cfg = checkpoint.get("config", {}) if isinstance(checkpoint, dict) else {}
     model_name = cfg.get("model_name", model_name)
-    model = timm.create_model(model_name, pretrained=False, in_chans=1, num_classes=num_classes)
+    last_error = None
+    for candidate_name in model_name_candidates(model_name):
+        try:
+            model = timm.create_model(candidate_name, pretrained=False, in_chans=1, num_classes=num_classes)
+            model_name = candidate_name
+            break
+        except RuntimeError as exc:
+            last_error = exc
+    else:
+        raise last_error if last_error is not None else RuntimeError(f"could not create model {model_name}")
     state = checkpoint
     if isinstance(checkpoint, dict):
         for key in ["state_dict", "model_state_dict", "model"]:
@@ -97,6 +106,13 @@ def _build_model(model_name: str, num_classes: int, checkpoint_path: Path):
         flush=True,
     )
     return model
+
+
+def model_name_candidates(model_name: str) -> list[str]:
+    candidates = [model_name]
+    if "." in model_name:
+        candidates.append(model_name.split(".", 1)[0])
+    return list(dict.fromkeys(candidates))
 
 
 def _make_mel_transform(args, device):

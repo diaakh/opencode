@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset-id", required=True)
     parser.add_argument("--title", default="BirdCLEF 2026 G124 EfficientNetV2-S 2025pre pseudo assets")
     parser.add_argument("--infer-py", default=str(Path(__file__).with_name("infer.py")))
+    parser.add_argument("--helper-py", default=str(Path(__file__).with_name("g124_assets.py")))
     return parser
 
 
@@ -34,8 +35,12 @@ def package_assets(args: argparse.Namespace) -> Path:
     infer_py = Path(args.infer_py)
     if not infer_py.exists():
         raise FileNotFoundError(infer_py)
+    helper_py = Path(args.helper_py)
+    if not helper_py.exists():
+        raise FileNotFoundError(helper_py)
 
     shutil.copy2(infer_py, output_dir / "infer.py")
+    shutil.copy2(helper_py, output_dir / "g124_assets.py")
     shutil.copy2(checkpoint, output_dir / "g124_fold1_fp16.pt")
     metadata = build_dataset_metadata(args.dataset_id, args.title)
     metadata_text = json.dumps(metadata, indent=2) + "\n"

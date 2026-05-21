@@ -14,6 +14,7 @@ from g124_assets import (
     validate_submission_frame,
 )
 from infer import build_parser
+from infer import model_name_candidates as infer_model_name_candidates
 from package_assets import build_dataset_metadata
 from package_assets import build_parser as build_package_parser
 from package_assets import package_assets
@@ -158,6 +159,13 @@ def test_infer_parser_accepts_s124_sidecar_arguments(tmp_path):
     assert args.checkpoint == [str(tmp_path / "g124_fold1_fp16.pt")]
 
 
+def test_infer_model_name_candidates_match_training_fallback():
+    assert infer_model_name_candidates("tf_efficientnetv2_s.in21ft1k") == [
+        "tf_efficientnetv2_s.in21ft1k",
+        "tf_efficientnetv2_s",
+    ]
+
+
 def test_train_parser_supports_2025_pretrain_and_2026_pseudo_modes(tmp_path):
     args = build_train_parser().parse_args(
         [
@@ -218,6 +226,7 @@ def test_package_assets_writes_kaggle_metadata_filename(tmp_path):
     assert (out / "datasets-metadata.json").exists()
     assert (out / "dataset-metadata.json").exists()
     assert (out / "infer.py").exists()
+    assert (out / "g124_assets.py").exists()
     assert (out / "g124_fold1_fp16.pt").exists()
 
 
