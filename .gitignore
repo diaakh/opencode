@@ -34,3 +34,4 @@ birdclef-2026/inference_notebooks/priors_bundle/
 birdclef-2026/analysis/knn_retrieval/knn_index.pkl
 birdclef-2026/inference_notebooks/knn_index_bundle/knn_index.pkl
 birdclef-2026/inference_notebooks/priors_bundle/external_rag_bundle.pkl
+birdclef-2026/sprint_2026-05-29_architecture/**/__pycache__/
