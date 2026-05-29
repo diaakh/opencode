@@ -98,3 +98,129 @@ NOW (CPU)** so training starts the instant GPU returns. Shakeup: 162/234 are Ave
 max-public-blend and the de-correlated noisy-student blend with best *worst-fold* macro-AUC.
 **MY BET:** A 4-round soft-label noisy-student SED teacher (not Perch) + a B0 insect/zero-train
 specialist, gated by OOF de-correlation, is the only move that buys real +0.03 to clear 0.96.
+
+---
+
+## ROUND 2
+
+### Dr. Vera "Mamba" Lindqvist
+Riya, your 0.12 math is the only honest arithmetic in this room, and it guts my opening. Be told
+plainly: a Perch-embedded SSM does **nothing** for the 28 zero-train classes — Perch never sees
+them, so `u_t` is null and my prototype head has no `p_{c,k}` to cosine against. My episode coupling
+only re-ranks the 206 mapped Aves. Conceding that. So I will NOT defend a Perch-only branch for the
+28 — that's dead.
+
+Marcus, you're also right that a Perch-fed SSM is a correlated branch — same log-mel error manifold,
+ρ~0.9, the tonylica trap again. I won't pretend a state-space readout launders that away. So I adapt,
+hard: **mount the episodic SSM on YOUR noisy-student SED logits, not Perch.** The SED teacher gives a
+genuinely orthogonal per-window emission; my Mamba-2 episode layer then does what SED *can't* —
+cross-soundscape, site-time-ordered, non-monotone re-ordering of those emissions. That's orthogonal
+error structure AND a temporal lever stacked on it, not a redundant column. The 28 get scored through
+the SED/insect-B0 head with sonotype max-pool over the episode — your specialist, my pooling.
+
+Riya, gate 3 (exp019 rank-agreement): cross-episode coupling IS a shakeup risk — state leaks across
+windows and can swing worst-fold. So constrain it: **scalar decay floored** (`λ` lower-bounded so
+`a_t≥0.6`, memory ≤ one site-day), readout as a **residual** `z = z_SED + γ·Δ_episode`, `γ` tuned to
+hold Spearman-vs-exp019 ≥ 0.95 on LOSO-frozen. If γ→0 helps the worst fold, it ships at γ→0. No grenade.
+
+This collapses four egos into one column stack: SED-teacher noisy-student (Marcus) → BirdMAE +
+BirdAVES independent lineages (Kenji) → leak-free ProtoCLR for the 28 (Kenji/Riya) → my episodic-SSM
+residual *on the SED logits only*, gated to exp019. T1 inference, T2 training on reset.
+
+**MY BET:** The SSM earns its seat ONLY as a γ-gated episodic residual on the noisy-student SED head —
+orthogonal, 28-safe via the specialist, shakeup-bounded — not as a Perch branch.
+**CONSENSUS PLAN I'D SIGN:** Noisy-student SED teacher + insect/28 B0 specialist + BirdMAE/BirdAVES
+lineages + leak-free ProtoCLR, rank-blended, with my episodic SSM as a γ-gated SED-only residual,
+all on LOSO-frozen with exp019 rank-agreement ≥ 0.95.
+
+### Prof. Kenji Tanaka
+Riya, your +0.12 math is the lodestar, and I concede my R1 "four columns" was hand-wavy on the
+leakage gate. The leak-free recipe, concrete: the 28 have NO train_audio — only positives inside
+labeled train_soundscapes, so the only class anchors are test-adjacent. The gate is **held-out-
+neighbour retrieval by site-day**: build ProtoCLR/BirdMAE prototypes per sonotype; at scoring a query
+window may retrieve ONLY anchors from a *different* site-day episode (strict group-disjoint kNN, k=5,
+cosine). That kills the `P_ctx_knn`-0.977 self-retrieval leak. Validate as you demand: LOSO on frozen
+predictions, column dead if overall−site_mean gap goes positive. BirdNET Geomodel-v3 maps to sonotypes
+via species→family logits collapsed onto the 28 as an *unmapped-weighted prior* (a retriever-free,
+leak-free column). Realistic fraction: the 0.12 ceiling assumes 0.5→1.0 on all 28; held-out few-shot
+realistically lands ~0.65–0.72 per class → **+0.03 to +0.045**, still the biggest lever. Marcus —
+your B0 noisy-student specialist has independent error structure mine lacks and likely beats cold
+retrieval on son15–21; they COMBINE — ship retrieval NOW (T1, CPU-ONNX), swap/blend the B0 on reset.
+Vera — episodic SSM is a distraction for the 28 (no anchors to couple), a modest complement elsewhere.
+**MY BET:** Strict held-out-neighbour ProtoCLR/BirdMAE retrieval + BirdNET sonotype prior lifts the 28
+by ~+0.035 on CPU now; Marcus's B0 specialist stacks on top at reset.
+**CONSENSUS PLAN I'D SIGN:** T1 now — group-disjoint held-out retrieval (BirdMAE+ProtoCLR) + BirdNET
+prior on the 28, LOSO-gated; T2 on reset — Marcus's noisy-student B0 specialist blended by OOF
+de-correlation; Vera's SSM deferred.
+
+### Riya Sharma "the Ranker"
+Three of you are about to hand me a leak wearing a lab coat. The gates: **Marcus** — your SED teacher
+trains on the SAME labeled soundscapes the test sites neighbour; pseudo-labels on the 10,592 encode
+dead-hour/site identity. Gate: **leave-one-recording-group-out**, every pseudo clip from a held-out
+site purged from teacher AND student; pass only if `site_mean − 0.5·max(gap,0)` rises AND worst-fold
+rises. **Kenji** — prototypes built ONLY from train_audio, never the query site's soundscapes;
+strict held-out-neighbour exclusion by recording group; any class with <K real neighbours reports
+NaN, not a borrowed score; measure per-class AUC on the 28 specifically. **Vera** — episodic cross-
+test coupling violates i.i.d. scoring. Concrete test: **shuffle episode assignment at inference and
+re-score; if macro-AUC moves >0.002 it's order-dependent → shakeup grenade, out.** In only if intra-
+site-day AND shuffle-invariant. My +0.12 is the ceiling; realistic in 5 days: recover ~8–12 of the
+28 to half-decent AUC ≈ **+0.008–0.015**, plus noisy-student **+0.01–0.02** net of contamination →
+honest **0.958–0.962**, not 0.964.
+**MY BET:** Noisy-student (site-grouped LOSO, purged teacher) as the orthogonal engine + the 28 via
+leak-free ProtoCLR scored per-class on held-out sites — everything frozen-prediction LOSO before a sub.
+**CONSENSUS PLAN I'D SIGN:** Purged noisy-student SED + strict held-out-neighbour 28-class stack on
+BirdMAE, gated by site-grouped LOSO (worst-fold + site_mean must rise), Vera's SSM only if shuffle-
+invariant; ship two subs — max-public-blend and the de-correlated best-worst-fold blend.
+
+### Marcus "GM" Oyelaran
+Convergence is obvious; I'll sign it. **Kenji — the 28:** noisy-student B0 specialist BEATS zero-shot
+retrieval but we blend both. Recipe: cut labeled-soundscape positive segments into 5s clips → *seed*
+hard labels for the B0 son-specialist; noisy-student over the 10,592 UNLABELED generates pseudo-
+positives, soft `0.7·pseudo+0.3·hard`, cap ≤0.4. Real out-of-sample signal, not retrieval. Blend B0
+(primary ranker for son15–21) + Kenji's leak-free ProtoCLR/BirdNET (orthogonal 2nd column) = two
+independent error structures on the 28. **Riya — LOSO:** on the 206 mapped, noisy-student survives
+site-held-out (teacher is OUR SED, no row sees its own label); on the 28 I gate on the site-balanced
+proxy, zero the column if `site_mean−0.5·max(gap,0)` doesn't rise. **Vera** — episodic SSD is cheap
+and orthogonal but rides the embeddings; train it on noisy-student logits, not raw Perch. **5-DAY
+SEQUENCE:** NOW(CPU) precompute SED pseudo-labels on 10,592 + cut 28-class clips → D1–2(GPU) noisy-
+student rounds 1–2 (B3-RAdam + nfnet_l0-AdamW) → D2–3 B0 son/zero-train specialist → D3–4 rounds 3–4
++ BirdAVES/BirdMAE ONNX export (CPU-parallel) → D4 episodic-SSD on student logits → D5 rank-blend,
+LOSO-gate every column, OpenVINO FP16 ≤90min, freeze. **2 SUBS:** (1) max-public-blend (defensive),
+(2) de-correlated noisy-student + B0/ProtoCLR-28 + episodic-SSD, selected on **best worst-fold**.
+**MY BET:** Noisy-student SED (rounds 1–2 first) feeding both a B0 zero-train specialist AND Vera's
+episodic SSD readout — orthogonal at embedding AND sequence level — is the +0.03 that clears 0.96.
+**CONSENSUS PLAN I'D SIGN:** Pseudo-label now → noisy-student SED first → B0/ProtoCLR 28-class dual-
+column → BirdMAE/AVES + episodic-SSD on student logits → LOSO+site-proxy gate every column → ship
+worst-fold-best blend vs public-max.
+
+---
+
+## 🏁 BREAKTHROUGH — the converged plan (all four signed)
+The room broke through to ONE plan. Unanimous structure:
+
+1. **Engine = noisy-student self-distillation**, teacher = our **SED (AttBlockV2), NOT Perch** (Perch
+   is what we're being orthogonal to). 4 rounds, soft labels `0.7·pseudo+0.3·hard`, TH=0.3, power
+   `p·(p>0.3)+p²`, pseudo-ratio ≤0.4, heavier student aug. → the +0.01–0.02 net orthogonal lift.
+2. **The 28 zero-train classes = the prize** (Riya: up to +0.12 ceiling; realistic +0.008–0.015),
+   attacked by a **DUAL independent column**: (a) a **B0 insect/amphibia specialist** seeded from
+   labeled-soundscape 5s clips + noisy-student pseudo-positives; (b) **strict held-out-neighbour
+   (group-disjoint by site-day) ProtoCLR/BirdMAE retrieval** + a leak-free **BirdNET sonotype prior**.
+3. **Independent lineages for diversity**: **BirdMAE** (validated +0.004) + **BirdAVES** (waveform SSL,
+   orthogonal feature path), CPU-ONNX, rank-blended.
+4. **Vera's episodic SSM survives — demoted**: a **γ-gated residual on the noisy-student SED logits**
+   (not Perch), floored decay (memory ≤ one site-day), **only if shuffle-invariant** (Riya's test:
+   shuffle episode assignment, macro-AUC must move <0.002) and rank-agreement-with-exp019 ≥ 0.95.
+5. **Validation gates (non-negotiable, Riya)**: **leave-one-recording-group-out** (not random fold);
+   pseudo clips from held-out sites purged from teacher AND student; a column ships only if
+   `site_mean − 0.5·max(gap,0)` rises AND **worst-fold** macro-AUC rises; the 28 measured **per-class**
+   on held-out sites; NaN (not borrowed) for classes with <K real neighbours.
+6. **Submission selection (shakeup hedge)**: 2 subs — (1) max-public-blend (defensive, 162/234 Aves),
+   (2) the de-correlated noisy-student+28-dual+SSD blend chosen on **best worst-fold**, not mean.
+7. **5-day sequence**: NOW(CPU) precompute pseudo-labels on 10,592 + cut 28-class clips → D1–2 NS
+   rounds 1–2 → D2–3 B0 specialist → D3–4 NS rounds 3–4 + BirdAVES/BirdMAE ONNX export → D4 episodic
+   SSD on student logits → D5 blend + LOSO-gate + OpenVINO FP16 ≤90min + freeze.
+
+**Honest converged forecast: 0.958–0.962** (Riya's number, the others didn't dispute it). Clears the
+0.950 plateau; 0.96 is reachable but the top (0.964) likely needs more than 5 days. The single most
+time-critical action — **start the CPU pseudo-label precompute now** (B1's `pseudo_label_precompute/`
+already built) so noisy-student fires the instant GPU returns.
