@@ -108,7 +108,13 @@ TAXONOMY_PATH   = COMP_DIR / "taxonomy.csv"
 
 # --- distilled-SED 5 folds: tuckerarrants/bc2026-distilled-sed-public ---
 #     mount: /kaggle/input/bc2026-distilled-sed-public/sed_fold{0..4}.onnx
-SED_FOLD0 = _first("sed_fold0.onnx")
+#     NOTE: tonylica/birdclef-2026-model ALSO bundles a byte-identical copy under xsed/.
+#     We must NOT pick that copy here, or the distilled_sed + tonylica members collapse
+#     to the same files (zero diversity). Prefer the standalone distilled-SED dataset.
+_sed_hits = sorted(Path("/kaggle/input").rglob("sed_fold0.onnx"))
+SED_FOLD0 = next((h for h in _sed_hits
+                  if "xsed" not in h.parts and "tonylica" not in str(h).lower()),
+                 _sed_hits[0] if _sed_hits else None)
 SED_DIR   = SED_FOLD0.parent if SED_FOLD0 else None
 
 # --- perch v2 (no dft) ONNX: tuckerarrants/perch-v2-no-dft-onnx ---
@@ -492,7 +498,47 @@ if DROPPED:
 
 test_files = sorted(TEST_DIR.glob("*.ogg")) if TEST_DIR.exists() else []
 if not test_files:
-    print("No test files — emitting all-zero submission (local dry-run).")
+    # DRY-RUN (commit): the hidden test set is only mounted at scoring time. Rather than
+    # emit a blind zero stub, exercise the REAL inference path on a few train_soundscapes
+    # (real audio IS mounted) so we PROVE each model produces sane, non-degenerate logits
+    # before spending a scored submission slot. Then emit the required zero placeholder.
+    print("No test files — running REAL-AUDIO SELF-TEST on train_soundscapes (dry-run).")
+    ss_dir = COMP_DIR / "train_soundscapes"
+    probe = sorted(ss_dir.glob("*.ogg"))[:2] if ss_dir.exists() else []
+    if probe:
+        xw = np.empty((len(probe) * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
+        for bi, p in enumerate(probe):
+            xw[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = load_audio_60s(p)
+        def _stat(nm, a):
+            a = np.asarray(a, dtype=np.float64)
+            ok = np.isfinite(a).all() and float(a.std()) > 1e-6
+            print(f"  [selftest] {nm:14s} shape={a.shape} min={a.min():.4f} "
+                  f"max={a.max():.4f} std={a.std():.4f} {'OK' if ok else 'DEGENERATE!!'}")
+            return ok
+        good = True
+        if PERCH is not None:
+            emb, perch_logit = perch_predict(xw)
+            good &= _stat("perch_logit", perch_logit); good &= _stat("perch_emb", emb)
+        else:
+            emb = perch_logit = None
+        mel = chunks_to_sed_mel(xw) if (SED_RUNNERS_MAIN or SED_RUNNERS_TONY) else None
+        if SED_RUNNERS_MAIN: good &= _stat("distilled_sed", sed_predict(SED_RUNNERS_MAIN, mel))
+        if SED_RUNNERS_TONY: good &= _stat("tonylica_sed", sed_predict(SED_RUNNERS_TONY, mel))
+        # confirm the two SED members are NOT identical (orthogonality check)
+        if SED_RUNNERS_MAIN and SED_RUNNERS_TONY:
+            d = float(np.abs(sed_predict(SED_RUNNERS_MAIN, mel)
+                             - sed_predict(SED_RUNNERS_TONY, mel)).mean())
+            print(f"  [selftest] distilled_sed vs tonylica mean|Δ|={d:.5f} "
+                  f"{'(distinct OK)' if d > 1e-4 else '(IDENTICAL — orthogonality lost!)'}")
+        if emb is not None and PROTO_HEAD is not None:
+            try: good &= _stat("proto_ssm", PROTO_HEAD(emb))
+            except Exception as e: print(f"  [selftest] proto_ssm head FAILED: {e}")
+        if emb is not None and RESSSM_HEAD is not None:
+            try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb))
+            except Exception as e: print(f"  [selftest] resssm head FAILED: {e}")
+        print(f"  [selftest] RESULT: {'ALL MODELS PRODUCE SANE OUTPUT ✓' if good else 'DEGENERATE OUTPUT ✗'}")
+    else:
+        print("  [selftest] no train_soundscapes available to probe.")
     out = samp.copy(); out.iloc[:, 1:] = 0.0
     out.to_csv("submission.csv", index=False); sys.exit(0)
 
