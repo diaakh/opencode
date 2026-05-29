@@ -47,7 +47,8 @@ WIN_SEC     = 5
 N_WINDOWS   = 12                  # 60s / 5s
 WINDOW_SAMPLES = SR * WIN_SEC     # 160_000
 NUM_CLASSES = 234
-BATCH_FILES = 4                   # 4*12 = 48 windows/ONNX call — small resident audio (OOM fix)
+BATCH_FILES = 16                  # 16*12=192 windows/ONNX call — scale-test peaked at 2.63GB w/ 4,
+                                  # so memory has 10+GB headroom; bigger batch amortizes call overhead
 
 # ---- distilled-SED mel front-end (EXACT public 0.950 convention) ----
 SED_N_FFT, SED_HOP, SED_NMELS = 2048, 512, 256
@@ -201,7 +202,10 @@ class OnnxRunner:
                 print(f"[backend] OV compile failed for {Path(self.onnx_path).name} ({e}); ORT fallback.")
         if self._compiled is None:
             so = ort.SessionOptions()
-            so.intra_op_num_threads = 2
+            # Use ALL physical cores (Kaggle CPU = 4). intra_op=2 left half the CPU idle
+            # and was the dominant throttle (81min projected). Sessions run sequentially,
+            # so full intra-op parallelism is safe and ~halves wall time.
+            so.intra_op_num_threads = os.cpu_count() or 4
             so.inter_op_num_threads = 1
             so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
             # Cap allocator growth — the CPU mem arena + mem pattern can hold large
