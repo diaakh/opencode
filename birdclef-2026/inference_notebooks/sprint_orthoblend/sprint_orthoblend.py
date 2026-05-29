@@ -36,7 +36,7 @@ per-class calibration is a no-op. => fuse models in RANK space, not probability 
 # ============================================================================
 # CELL 0 — CONFIG  (everything tunable lives here)
 # ============================================================================
-import os, re, gc, sys, time, glob, pickle, subprocess
+import os, re, gc, sys, time, glob, pickle, subprocess, resource
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -47,7 +47,7 @@ WIN_SEC     = 5
 N_WINDOWS   = 12                  # 60s / 5s
 WINDOW_SAMPLES = SR * WIN_SEC     # 160_000
 NUM_CLASSES = 234
-BATCH_FILES = 16                  # 16*12 = 192 windows/ONNX call — saturates CPU SIMD
+BATCH_FILES = 4                   # 4*12 = 48 windows/ONNX call — small resident audio (OOM fix)
 
 # ---- distilled-SED mel front-end (EXACT public 0.950 convention) ----
 SED_N_FFT, SED_HOP, SED_NMELS = 2048, 512, 256
@@ -201,9 +201,14 @@ class OnnxRunner:
                 print(f"[backend] OV compile failed for {Path(self.onnx_path).name} ({e}); ORT fallback.")
         if self._compiled is None:
             so = ort.SessionOptions()
-            so.intra_op_num_threads = 4
+            so.intra_op_num_threads = 2
             so.inter_op_num_threads = 1
             so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            # Cap allocator growth — the CPU mem arena + mem pattern can hold large
+            # pre-allocated buffers per session that never shrink (peak-RAM driver at
+            # scale across Perch + 5 SED sessions). Disable both to keep RSS bounded.
+            so.enable_cpu_mem_arena = False
+            so.enable_mem_pattern = False
             self._sess = ort.InferenceSession(self.onnx_path, so, providers=["CPUExecutionProvider"])
             self._in_name = self._sess.get_inputs()[0].name
 
@@ -574,10 +579,30 @@ class _SSMHeads:
             refined = logits + correction
         return _sigmoid(refined.reshape(-1, NUM_CLASSES).cpu().numpy())
 
+    def proto_and_resssm(self, emb_flat, want_proto, want_res):
+        """Compute the proto forward ONCE and derive both members from it (item 4:
+        avoids the duplicate proto forward that .proto()+.resssm() incurred).
+        Returns (proto_probs_or_None, resssm_probs_or_None)."""
+        proto_p = res_p = None
+        if not (want_proto or want_res):
+            return proto_p, res_p
+        seq = _emb_to_seq(emb_flat)
+        with _TORCH.no_grad():
+            logits, _, _ = self.proto_model(seq, perch_logits=None)   # single proto forward
+            if want_proto:
+                proto_p = _sigmoid(logits.reshape(-1, NUM_CLASSES).cpu().numpy())
+            if want_res:
+                refined = logits + self.res_model(seq, logits)
+                res_p = _sigmoid(refined.reshape(-1, NUM_CLASSES).cpu().numpy())
+        del seq
+        return proto_p, res_p
+
 
 _SSM = _SSMHeads(PROTO_SSM_PT, RESSSM_PT)
 PROTO_HEAD = (lambda emb: _SSM.proto(emb)) if _SSM.ok_proto else None
 RESSSM_HEAD = (lambda emb: _SSM.resssm(emb)) if (_SSM.ok_proto and _SSM.ok_res) else None
+# Combined single-proto-forward path used in the main loop (item 4).
+SSM_BOTH = (lambda emb, wp, wr: _SSM.proto_and_resssm(emb, wp, wr)) if _SSM.ok_proto else None
 
 
 # ============================================================================
@@ -692,9 +717,12 @@ def taxonomy_smooth(P, genus_a=GENUS_ALPHA, class_a=CLASS_ALPHA):
 # ============================================================================
 from scipy.ndimage import gaussian_filter1d
 
-# Build per-member SED runners (shared distilled folds + tonylica's own xsed folds)
+# Build per-member SED runners (shared distilled folds only).
+# NOTE: tonylica xsed folds are byte-identical to distilled_sed and the tonylica
+# member was DROPPED from ENSEMBLE — we no longer load those 5 ONNX sessions
+# (they were pure dead RAM: 5 extra InferenceSessions). The tonylica orthogonality
+# probe is gone with them.
 SED_RUNNERS_MAIN = build_sed_runners(SED_DIR)               # tuckerarrants distilled SED
-SED_RUNNERS_TONY = build_sed_runners(TONYLICA_XSED_DIR)     # tonylica xsed folds
 
 # Which members are actually available (gate by mount). Drop missing & renormalize.
 def member_available(name):
@@ -713,156 +741,219 @@ DROPPED = [k for k in ENSEMBLE if k not in ACTIVE]
 if DROPPED:
     print(f"  (dropped — asset absent or validation-pending: {DROPPED})")
 
-test_files = sorted(TEST_DIR.glob("*.ogg")) if TEST_DIR.exists() else []
-if not test_files:
-    # DRY-RUN (commit): the hidden test set is only mounted at scoring time. Rather than
-    # emit a blind zero stub, exercise the REAL inference path on a few train_soundscapes
-    # (real audio IS mounted) so we PROVE each model produces sane, non-degenerate logits
-    # before spending a scored submission slot. Then emit the required zero placeholder.
-    print("No test files — running REAL-AUDIO SELF-TEST on train_soundscapes (dry-run).")
-    ss_dir = COMP_DIR / "train_soundscapes"
-    probe = sorted(ss_dir.glob("*.ogg"))[:2] if ss_dir.exists() else []
-    if probe:
-        xw = np.empty((len(probe) * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
-        for bi, p in enumerate(probe):
-            xw[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = load_audio_60s(p)
-        def _stat(nm, a):
-            a = np.asarray(a, dtype=np.float64)
-            ok = np.isfinite(a).all() and float(a.std()) > 1e-6
-            print(f"  [selftest] {nm:14s} shape={a.shape} min={a.min():.4f} "
-                  f"max={a.max():.4f} std={a.std():.4f} {'OK' if ok else 'DEGENERATE!!'}")
-            return ok
-        # good == verdict over the ACTIVE ensemble members only. The perch_logit line
-        # below is INFORMATIONAL: the no-DFT Perch ONNX emits embeddings only (no
-        # classifier head), so perch_logit is expected all-zero and proto/resssm run
-        # with perch_logits=None (prototype-similarity branch). It does NOT gate the verdict.
-        good = True
-        if PERCH is not None:
-            emb, perch_logit = perch_predict(xw)
-            _stat("perch_logit", perch_logit)          # informational (expected zero)
-            good &= _stat("perch_emb", emb)             # embeddings MUST be non-degenerate
-        else:
-            emb = perch_logit = None
-        # tonylica xsed folds were DROPPED from the ensemble (byte-identical to
-        # distilled_sed). We still run the orthogonality probe here purely to DOCUMENT
-        # that decision; it is informational and does not gate the verdict.
-        mel = chunks_to_sed_mel(xw) if (SED_RUNNERS_MAIN or SED_RUNNERS_TONY) else None
-        if SED_RUNNERS_MAIN: good &= _stat("distilled_sed", sed_predict(SED_RUNNERS_MAIN, mel))
-        if SED_RUNNERS_TONY:
-            _stat("tonylica_sed", sed_predict(SED_RUNNERS_TONY, mel))  # informational
-        if SED_RUNNERS_MAIN and SED_RUNNERS_TONY:
-            d = float(np.abs(sed_predict(SED_RUNNERS_MAIN, mel)
-                             - sed_predict(SED_RUNNERS_TONY, mel)).mean())
-            print(f"  [selftest] distilled_sed vs tonylica mean|Δ|={d:.5f} "
-                  f"{'(distinct)' if d > 1e-4 else '(IDENTICAL — correctly DROPPED from ensemble)'}")
-        if emb is not None and PROTO_HEAD is not None:
-            try: good &= _stat("proto_ssm", PROTO_HEAD(emb))
-            except Exception as e:
-                good = False; print(f"  [selftest] proto_ssm head FAILED: {e}")
-        if emb is not None and RESSSM_HEAD is not None:
-            try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb))
-            except Exception as e:
-                good = False; print(f"  [selftest] resssm head FAILED: {e}")
-        # confirm proto_ssm and sgkfk_resssm are genuinely distinct (two-pass refinement)
-        if emb is not None and PROTO_HEAD is not None and RESSSM_HEAD is not None:
-            dd = float(np.abs(PROTO_HEAD(emb) - RESSSM_HEAD(emb)).mean())
-            print(f"  [selftest] proto_ssm vs sgkfk_resssm mean|Δ|={dd:.5f} "
-                  f"{'(distinct OK)' if dd > 1e-5 else '(IDENTICAL — residual head no-op!)'}")
-        print(f"  [selftest] RESULT: {'ALL ACTIVE MEMBERS PRODUCE SANE OUTPUT ✓' if good else 'DEGENERATE OUTPUT ✗'}")
-    else:
-        print("  [selftest] no train_soundscapes available to probe.")
-    out = samp.copy(); out.iloc[:, 1:] = 0.0
-    out.to_csv("submission.csv", index=False); sys.exit(0)
-
 ROW_RE = re.compile(r"_(\d{8})_(\d{6})$")
-# per-member accumulators
-acc = {k: [] for k in ACTIVE}
-row_ids_all, hours_all = [], []
-t0 = time.time()
-
 import concurrent.futures
 def _load(p): return p, load_audio_60s(p)
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-    nxt = test_files[:BATCH_FILES]
-    nxt_f = [pool.submit(_load, p) for p in nxt]
-    for start in range(0, len(test_files), BATCH_FILES):
-        batch = [f.result() for f in nxt_f]
-        ns = start + BATCH_FILES
-        if ns < len(test_files):
-            nb = test_files[ns:ns + BATCH_FILES]
-            nxt_f = [pool.submit(_load, p) for p in nb]
-        bn = len(batch)
-        x = np.empty((bn * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
-        for bi, (_, yw) in enumerate(batch):
-            x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
 
-        # --- shared substrates (compute ONCE, fan out) ---
-        emb, perch_logit = perch_predict(x) if PERCH is not None else (None, None)
-        mel = chunks_to_sed_mel(x) if (SED_RUNNERS_MAIN or SED_RUNNERS_TONY) else None
+def _peak_rss_gb():
+    """Linux: ru_maxrss is in KB. Return peak resident set size in GiB."""
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024.0 * 1024.0)
 
-        # --- per-member probs for this batch ---
-        # proto_ssm / sgkfk_resssm are only in ACTIVE when their torch heads loaded
-        # strict (member_available gates on PROTO_HEAD / RESSSM_HEAD), so the real
-        # SSM two-pass runs here — no silent perch-logit degrade.
-        member_probs = {}
-        if "distilled_sed" in ACTIVE:
-            member_probs["distilled_sed"] = sed_predict(SED_RUNNERS_MAIN, mel)
-        if "proto_ssm" in ACTIVE:
-            member_probs["proto_ssm"] = PROTO_HEAD(emb)
-        if "sgkfk_resssm" in ACTIVE:
-            member_probs["sgkfk_resssm"] = RESSSM_HEAD(emb)
 
-        # --- within-file Gaussian temporal smoothing per file, then store ---
-        for bi, (fpath, _) in enumerate(batch):
-            s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
-            stem = fpath.stem
-            m = ROW_RE.search(stem)
-            hour = int(m.group(2)[:2]) if m else 0
-            for i in range(N_WINDOWS):
-                row_ids_all.append(f"{stem}_{(i + 1) * WIN_SEC}")
-                hours_all.append(hour)
-            for k in ACTIVE:
-                pf = member_probs[k][s].astype(np.float32)
-                if pf.shape[0] > 1:
-                    pf = gaussian_filter1d(pf, sigma=GAUSS_SIGMA, axis=0, mode="nearest")
-                acc[k].append(pf)
+def run_full_inference(files, label="test"):
+    """The EXACT scoring code path. Streams `files` in BATCH_FILES chunks through
+    Perch + SED + SSM heads, accumulates per-member probs, and aggressively frees
+    each batch's audio / embedding / mel / member buffers to keep peak RSS bounded
+    (OOM fix). Returns (P_dict, row_ids_all, hours_array)."""
+    acc = {k: [] for k in ACTIVE}
+    row_ids_all, hours_all = [], []
+    t0 = time.time()
+    want_proto = "proto_ssm" in ACTIVE
+    want_res = "sgkfk_resssm" in ACTIVE
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        nxt_f = [pool.submit(_load, p) for p in files[:BATCH_FILES]]
+        for start in range(0, len(files), BATCH_FILES):
+            batch = [f.result() for f in nxt_f]
+            ns = start + BATCH_FILES
+            if ns < len(files):
+                nb = files[ns:ns + BATCH_FILES]
+                nxt_f = [pool.submit(_load, p) for p in nb]
+            bn = len(batch)
+            x = np.empty((bn * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
+            for bi, (_, yw) in enumerate(batch):
+                x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
 
-        done = start + bn
-        if done % (BATCH_FILES * 4) == 0 or done == len(test_files):
-            el = time.time() - t0
-            rate = done / max(el, 1.0)
-            print(f"  [{done}/{len(test_files)}] {el:.0f}s  {rate:.2f} files/s  "
-                  f"eta {(len(test_files)-done)/max(rate,0.01):.0f}s")
+            # --- shared substrates (compute ONCE, fan out) ---
+            emb, perch_logit = perch_predict(x) if PERCH is not None else (None, None)
+            emb = emb.astype(np.float32, copy=False) if emb is not None else None
+            del perch_logit
+            mel = chunks_to_sed_mel(x) if SED_RUNNERS_MAIN else None
 
-P = {k: np.concatenate(v, axis=0) for k, v in acc.items()}
-hours = np.array(hours_all, dtype=np.int32)
-print(f"\nInference {time.time()-t0:.0f}s. members={list(P)} rows={len(row_ids_all)}")
+            # --- per-member probs for this batch ---
+            member_probs = {}
+            if "distilled_sed" in ACTIVE:
+                member_probs["distilled_sed"] = sed_predict(SED_RUNNERS_MAIN, mel)
+            # proto + residual share ONE proto forward (item 4: no duplicate forward)
+            if (want_proto or want_res) and emb is not None and SSM_BOTH is not None:
+                p_proto, p_res = SSM_BOTH(emb, want_proto, want_res)
+                if want_proto:
+                    member_probs["proto_ssm"] = p_proto
+                if want_res:
+                    member_probs["sgkfk_resssm"] = p_res
+
+            # --- within-file Gaussian temporal smoothing per file, then store ---
+            for bi, (fpath, _) in enumerate(batch):
+                s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
+                stem = fpath.stem
+                m = ROW_RE.search(stem)
+                hour = int(m.group(2)[:2]) if m else 0
+                for i in range(N_WINDOWS):
+                    row_ids_all.append(f"{stem}_{(i + 1) * WIN_SEC}")
+                    hours_all.append(hour)
+                for k in ACTIVE:
+                    pf = member_probs[k][s].astype(np.float32)
+                    if pf.shape[0] > 1:
+                        pf = gaussian_filter1d(pf, sigma=GAUSS_SIGMA, axis=0, mode="nearest")
+                    acc[k].append(pf)
+
+            # --- aggressive per-batch cleanup (peak RAM driver) ---
+            del x, emb, mel, member_probs, batch
+            gc.collect()
+
+            done = start + bn
+            if done % (BATCH_FILES * 4) == 0 or done == len(files):
+                el = time.time() - t0
+                rate = done / max(el, 1.0)
+                print(f"  [{label} {done}/{len(files)}] {el:.0f}s  {rate:.2f} files/s  "
+                      f"rss={_peak_rss_gb():.2f}GB  "
+                      f"eta {(len(files)-done)/max(rate,0.01):.0f}s")
+
+    P = {k: np.concatenate(v, axis=0) for k, v in acc.items()}
+    del acc
+    gc.collect()
+    hours = np.array(hours_all, dtype=np.int32)
+    print(f"\n[{label}] inference {time.time()-t0:.0f}s. members={list(P)} rows={len(row_ids_all)}")
+    return P, row_ids_all, hours
+
+
+def blend_members(P, row_ids_all, hours):
+    """rank-blend (config weights) + hour prior + taxonomy smoothing -> final array."""
+    names = list(ACTIVE.keys())
+    mats = [P[k] for k in names]
+    weights = [ACTIVE[k] for k in names]
+    print(f"[blend] rank-blend power={RANK_POWER}  weights={dict(zip(names, weights))}")
+    blend = rank_blend(mats, weights, power=RANK_POWER)          # percentile-rank blend
+    blend = apply_hour_prior(blend, hours)                       # G_prior site/hour shift
+    blend = taxonomy_smooth(blend)                               # genus .15 / class .05
+    return np.clip(blend, 0.0, 1.0).astype(np.float32)
+
+
+def write_submission(final, row_ids_all):
+    out_df = pd.DataFrame(final, columns=class_cols)
+    out_df.insert(0, "row_id", row_ids_all)
+    sample_ids = samp["row_id"].astype(str).tolist()
+    if set(out_df["row_id"]) == set(sample_ids):
+        out_df = out_df.set_index("row_id").loc[sample_ids].reset_index()
+    out_df = out_df[["row_id"] + class_cols]                     # enforce exact column order
+    out_df.to_csv("submission.csv", index=False)
+    print(f"\nWrote submission.csv: {out_df.shape[0]} rows x {out_df.shape[1]} cols "
+          f"(min={final.min():.4f} max={final.max():.4f})")
+    return out_df
+
+
+def write_zero_submission():
+    out = samp.copy(); out.iloc[:, 1:] = 0.0
+    out.to_csv("submission.csv", index=False)
+    print(f"Wrote ZERO placeholder submission.csv: {out.shape[0]} rows x {out.shape[1]} cols")
+
+
+def tiny_model_selftest():
+    """Tiny 2-file model sanity check (correctness, not scale). Informational."""
+    print("---- TINY MODEL SELF-TEST (2 files) ----")
+    ss_dir = COMP_DIR / "train_soundscapes"
+    probe = sorted(ss_dir.glob("*.ogg"))[:2] if ss_dir.exists() else []
+    if not probe:
+        print("  [selftest] no train_soundscapes available to probe.")
+        return
+    xw = np.empty((len(probe) * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
+    for bi, p in enumerate(probe):
+        xw[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = load_audio_60s(p)
+    def _stat(nm, a):
+        a = np.asarray(a, dtype=np.float64)
+        ok = np.isfinite(a).all() and float(a.std()) > 1e-6
+        print(f"  [selftest] {nm:14s} shape={a.shape} min={a.min():.4f} "
+              f"max={a.max():.4f} std={a.std():.4f} {'OK' if ok else 'DEGENERATE!!'}")
+        return ok
+    good = True
+    if PERCH is not None:
+        emb, perch_logit = perch_predict(xw)
+        _stat("perch_logit", perch_logit)
+        good &= _stat("perch_emb", emb)
+    else:
+        emb = None
+    mel = chunks_to_sed_mel(xw) if SED_RUNNERS_MAIN else None
+    if SED_RUNNERS_MAIN:
+        good &= _stat("distilled_sed", sed_predict(SED_RUNNERS_MAIN, mel))
+    if emb is not None and PROTO_HEAD is not None:
+        try: good &= _stat("proto_ssm", PROTO_HEAD(emb))
+        except Exception as e:
+            good = False; print(f"  [selftest] proto_ssm head FAILED: {e}")
+    if emb is not None and RESSSM_HEAD is not None:
+        try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb))
+        except Exception as e:
+            good = False; print(f"  [selftest] resssm head FAILED: {e}")
+    if emb is not None and PROTO_HEAD is not None and RESSSM_HEAD is not None:
+        dd = float(np.abs(PROTO_HEAD(emb) - RESSSM_HEAD(emb)).mean())
+        print(f"  [selftest] proto_ssm vs sgkfk_resssm mean|Δ|={dd:.5f} "
+              f"{'(distinct OK)' if dd > 1e-5 else '(IDENTICAL — residual head no-op!)'}")
+    print(f"  [selftest] RESULT: {'ALL ACTIVE MEMBERS SANE ✓' if good else 'DEGENERATE OUTPUT ✗'}")
+    del xw, mel
+    gc.collect()
+
 
 # ============================================================================
-# CELL 10 — RANK-BLEND (config weights) + priors + taxonomy smoothing
+# CELL 9b — DISPATCH: real scoring path vs dry-run COMMIT SCALE-TEST
 # ============================================================================
-names = list(ACTIVE.keys())
-mats = [P[k] for k in names]
-weights = [ACTIVE[k] for k in names]
-print(f"[blend] rank-blend power={RANK_POWER}  weights={dict(zip(names, weights))}")
+test_files = sorted(TEST_DIR.glob("*.ogg")) if TEST_DIR.exists() else []
 
-blend = rank_blend(mats, weights, power=RANK_POWER)          # R(...) percentile-rank blend
-blend = apply_hour_prior(blend, hours)                       # G_prior site/hour shift
-blend = taxonomy_smooth(blend)                               # genus .15 / class .05
-final = np.clip(blend, 0.0, 1.0).astype(np.float32)
-
-# ============================================================================
-# CELL 11 — SUBMISSION WRITER (match sample_submission columns & order exactly)
-# ============================================================================
-out_df = pd.DataFrame(final, columns=class_cols)
-out_df.insert(0, "row_id", row_ids_all)
-sample_ids = samp["row_id"].astype(str).tolist()
-if set(out_df["row_id"]) == set(sample_ids):
-    out_df = out_df.set_index("row_id").loc[sample_ids].reset_index()
-out_df = out_df[["row_id"] + class_cols]                     # enforce exact column order
-out_df.to_csv("submission.csv", index=False)
-print(f"\nWrote submission.csv: {out_df.shape[0]} rows x {out_df.shape[1]} cols "
-      f"(min={final.min():.4f} max={final.max():.4f})")
-print(f"Backend: {'OpenVINO-FP16' if USE_OPENVINO else 'ONNXRuntime-CPU'} | "
-      f"members={names} | weights={weights}")
+if test_files:
+    # -------- REAL SCORING PATH --------
+    P, row_ids_all, hours = run_full_inference(test_files, label="test")
+    final = blend_members(P, row_ids_all, hours)
+    write_submission(final, row_ids_all)
+    print(f"PEAK RSS = {_peak_rss_gb():.2f} GB | Backend: "
+          f"{'OpenVINO-FP16' if USE_OPENVINO else 'ONNXRuntime-CPU'}")
+else:
+    # -------- DRY-RUN COMMIT SCALE-TEST (no submission, validate memory@scale) --------
+    # The hidden test set (~600 files) is only mounted at scoring time. To PROVE the
+    # pipeline fits RAM/time at scale BEFORE resubmitting, run the FULL scoring code
+    # path (same run_full_inference + blend) over N real train_soundscapes files, then
+    # report peak RSS, wall time, files/sec, and submission-shape sanity. Finally emit
+    # the required zero placeholder (the real test is absent in a commit).
+    tiny_model_selftest()
+    SCALE_N = int(os.environ.get("ORTHOBLEND_SCALE_N", "300"))
+    ss_dir = COMP_DIR / "train_soundscapes"
+    scale_files = sorted(ss_dir.glob("*.ogg"))[:SCALE_N] if ss_dir.exists() else []
+    if scale_files:
+        print(f"\n==== COMMIT SCALE-TEST: full pipeline over {len(scale_files)} "
+              f"real train_soundscapes (BATCH_FILES={BATCH_FILES}) ====")
+        t_scale = time.time()
+        P, row_ids_all, hours = run_full_inference(scale_files, label="scale")
+        final = blend_members(P, row_ids_all, hours)
+        wall = time.time() - t_scale
+        n = len(scale_files)
+        fps = n / max(wall, 1e-6)
+        peak = _peak_rss_gb()
+        finite = bool(np.isfinite(final).all())
+        proj_600 = 600.0 / max(fps, 1e-6)
+        print("\n==== SCALE-TEST REPORT ====")
+        print(f"  files_processed   : {n}")
+        print(f"  PEAK_RSS_GB       : {peak:.2f}  (ru_maxrss; budget ~13 GB)")
+        print(f"  wall_time_s       : {wall:.0f}")
+        print(f"  files_per_sec     : {fps:.3f}")
+        print(f"  proj_600_runtime_s: {proj_600:.0f}  ({proj_600/60:.1f} min vs 90 min budget)")
+        print(f"  submission_shape  : {final.shape}  (expect rows={n*N_WINDOWS}, cols={NUM_CLASSES})")
+        print(f"  all_finite        : {finite}")
+        print(f"  value_range       : min={final.min():.4f} max={final.max():.4f}")
+        shape_ok = final.shape == (n * N_WINDOWS, NUM_CLASSES)
+        verdict = finite and shape_ok and (final.min() >= 0.0) and (final.max() <= 1.0)
+        print(f"  SCALE_TEST_VERDICT: {'PASS ✓' if verdict else 'FAIL ✗'} "
+              f"(peak {peak:.2f}GB {'<' if peak < 13 else '>='} 13GB)")
+        del P, final, row_ids_all, hours
+        gc.collect()
+    else:
+        print("  [scale-test] no train_soundscapes available — skipping scale-test.")
+    # Still emit the required submission.csv (zeros for the absent real test).
+    write_zero_submission()
+    sys.exit(0)
