@@ -62,6 +62,8 @@ W_PRIOR          = 2.0            # site/hour log-prior shift weight (conservati
 GENUS_ALPHA      = 0.15           # taxonomy smoothing (architecture doc)
 CLASS_ALPHA      = 0.05
 GAUSS_SIGMA      = 0.65           # within-file temporal smoothing of SED across 12 windows
+N_SED_FOLDS      = 3              # use 3 of 5 distilled-SED folds — fold-avg saturates; SED was
+                                  # 71%% of runtime, so this is the speed lever (proj 77->~55min)
 
 # ============================================================================
 #  ENSEMBLE MEMBERSHIP  — *** the one dict to edit ***  (item: config-driven)
@@ -290,6 +292,9 @@ def build_sed_runners(sed_dir):
         return []
     paths = sorted(Path(sed_dir).glob("sed_fold*.onnx"),
                    key=lambda p: int(re.search(r"sed_fold(\d+)", p.name).group(1)))
+    # SED fold-ensemble was 71%% of runtime (5 folds). Fold-averaging saturates, so cap
+    # to N_SED_FOLDS — the rank signal is ~unchanged but runtime drops ~40%% (77->~55min).
+    paths = paths[:N_SED_FOLDS]
     return [OnnxRunner(p, n_outputs_keep=2) for p in paths]
 
 
@@ -942,7 +947,7 @@ else:
     # report peak RSS, wall time, files/sec, and submission-shape sanity. Finally emit
     # the required zero placeholder (the real test is absent in a commit).
     tiny_model_selftest()
-    SCALE_N = int(os.environ.get("ORTHOBLEND_SCALE_N", "80"))
+    SCALE_N = int(os.environ.get("ORTHOBLEND_SCALE_N", "300"))
     ss_dir = COMP_DIR / "train_soundscapes"
     scale_files = sorted(ss_dir.glob("*.ogg"))[:SCALE_N] if ss_dir.exists() else []
     if scale_files:
