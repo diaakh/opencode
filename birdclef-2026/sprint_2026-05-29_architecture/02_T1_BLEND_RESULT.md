@@ -38,3 +38,30 @@ in-sample blend reshuffling is a mirage.
   (BirdMAE, Perch20, and the live `tonylica`/`sgkfk` weights), evaluated leave-one-site-out.
 - This is why the real lever is T2 (train a new orthogonal model) + T1-1 (blend live
   independent trained weights), not the on-disk derived OOFs.
+
+---
+
+## Leave-one-site-out (LOSO) validation — `agents/t1_loso_validate.py`
+Honest out-of-site test (weight chosen on N-1 sites, scored on held-out site, concatenated):
+
+| helper | LOSO overall macro-AUC | Δ vs exp019 (0.96429) |
+|---|---:|---:|
+| **birdmae** (independent FM) | 0.96830 | **+0.00401  ✅ TRUSTED** |
+| perch20 (independent FM) | 0.96429 | +0.00000 (no help here) |
+| P_ctx_knn (leaky control) | 0.98301 | +0.01872 ⚠️ |
+| db_ridge (leaky control) | 0.97298 | +0.00868 ⚠️ |
+
+### Important caveat about this test
+LOSO here holds out a site for **weight selection only**. It does NOT remove leakage that
+is **baked into a precomputed prediction matrix**. Context-kNN (`P_ctx_knn`) retrieves each
+row's own neighbours/labels across all 739 rows, so the held-out site's predictions are
+*also* pre-leaked → the control does not collapse. Lesson: **a helper built by retrieval over
+the labeled set cannot be cleared by LOSO-on-weights**; it must be regenerated with strict
+held-out-neighbour retrieval before it can be trusted.
+
+### Actionable
+- ✅ **Include BirdMAE** as a real orthogonal rank-blend member (+0.004, survives honest test).
+- ❌ Perch20: no lift on this OOF (keep as toggle, may help on full test).
+- ❌ kNN/db_ridge derived OOFs: do NOT ship until regenerated leak-free.
+- This is the empirical proof of the sprint thesis end-to-end: independent trained/foundation
+  models give small-but-real lifts; in-sample/retrieval blends are mirages.
