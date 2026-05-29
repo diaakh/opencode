@@ -70,7 +70,110 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--amp", action="store_true", default=False)
     parser.add_argument("--grad-clip", type=float, default=1.0)
     parser.add_argument("--timm-pretrained", action="store_true", help="Allow timm pretrained weight loading when internet/cache is available")
+    # ---- T2-A: noisy-student / self-distillation loop (see noisy_student.py) ----
+    parser.add_argument("--noisy-student-rounds", type=int, default=0,
+                        help="If >0, run the multi-iteration noisy-student loop for this many rounds (A6 sweet spot 3-4). 0 disables it (default supervised path).")
+    parser.add_argument("--pseudo-parquet", default=None,
+                        help="B1 pseudo-label parquet (filename, start_sec, <234 soft cols>, file_confidence). Soft soundscape targets for the student.")
+    parser.add_argument("--ns-pseudo-alpha", type=float, default=0.7)
+    parser.add_argument("--ns-pseudo-threshold", type=float, default=0.3)
+    parser.add_argument("--ns-pseudo-power", type=float, default=2.0)
+    parser.add_argument("--ns-pseudo-ratio-cap", type=float, default=0.4)
+    parser.add_argument("--ns-final-tss", action="store_true", default=False,
+                        help="Final round re-labels with the stricter TSS threshold (5th place pseudo_tss_th).")
+    parser.add_argument("--ns-tss-threshold", type=float, default=0.7)
+    parser.add_argument("--ns-noise-base", type=float, default=0.1)
+    parser.add_argument("--ns-noise-step", type=float, default=0.1)
+    parser.add_argument("--ns-noise-max", type=float, default=0.5)
+    # ---- T2-B: bidirectional SSM / prototype head over Perch embeddings ----
+    parser.add_argument("--ssm-head", action="store_true", default=False,
+                        help="Use the bidirectional Mamba-2/SSD + prototype head over Perch embedding sequences instead of the EfficientNet mel pipeline.")
+    parser.add_argument("--perch-embeddings", default=None,
+                        help="Path to precomputed Perch embedding sequences (.npz with E:(F,T,D), filenames). Required when --ssm-head is set for the real run.")
+    parser.add_argument("--ssm-embed-dim", type=int, default=1280)
+    parser.add_argument("--ssm-proj-dim", type=int, default=256)
+    parser.add_argument("--ssm-state-dim", type=int, default=16)
+    parser.add_argument("--ssm-protos-per-class", type=int, default=1)
+    parser.add_argument("--ssm-tau", type=float, default=16.0)
+    parser.add_argument("--ssm-no-bidirectional", action="store_true", default=False)
+    parser.add_argument("--ssm-no-mamba-kernel", action="store_true", default=False,
+                        help="Force the pure-PyTorch scan even if mamba-ssm is importable (CPU smoke path).")
     return parser
+
+
+def build_ssm_head_config(args):
+    """Build an :class:`ssm_head.SSMHeadConfig` from parsed CLI args."""
+    from ssm_head import SSMHeadConfig
+
+    return SSMHeadConfig(
+        embed_dim=int(args.ssm_embed_dim),
+        proj_dim=int(args.ssm_proj_dim),
+        state_dim=int(args.ssm_state_dim),
+        num_classes=234,
+        protos_per_class=int(args.ssm_protos_per_class),
+        tau=float(args.ssm_tau),
+        bidirectional=not bool(args.ssm_no_bidirectional),
+        use_mamba_ssm=not bool(args.ssm_no_mamba_kernel),
+    )
+
+
+def build_noisy_student_config(args):
+    """Build a :class:`noisy_student.NoisyStudentConfig` from parsed CLI args."""
+    from noisy_student import NoisyStudentConfig
+
+    return NoisyStudentConfig(
+        n_rounds=int(args.noisy_student_rounds),
+        pseudo_alpha=float(args.ns_pseudo_alpha),
+        pseudo_threshold=float(args.ns_pseudo_threshold),
+        pseudo_power=float(args.ns_pseudo_power),
+        pseudo_ratio_cap=float(args.ns_pseudo_ratio_cap),
+        final_tss=bool(args.ns_final_tss),
+        tss_threshold=float(args.ns_tss_threshold),
+        noise_base=float(args.ns_noise_base),
+        noise_step=float(args.ns_noise_step),
+        noise_max=float(args.ns_noise_max),
+    )
+
+
+# Pseudo-label parquet schema assumed for B1's precompute output (reconcile if it differs):
+#   filename       : str   soundscape file stem or basename (e.g. BC2026_Train_0001_...)
+#   start_sec      : float window start in seconds (0,5,...,55 for a 60 s file)
+#   <234 columns>  : float soft scores in [0,1], one per BirdCLEF-2026 class code
+#   file_confidence: float per-file confidence used to weight / subsample pseudo rows
+PSEUDO_PARQUET_META_COLS = ("filename", "start_sec", "file_confidence")
+
+
+def load_pseudo_parquet(path: str | None, classes: list[str]):
+    """Load B1's pseudo-label parquet into (meta_df, soft_targets ndarray).
+
+    Tolerates a missing ``file_confidence`` column (defaults to 1.0) and validates that
+    all 234 class columns are present so a schema mismatch fails loudly rather than
+    silently mislabeling. Returns ``(None, None)`` when ``path`` is falsy.
+    """
+    if not path:
+        return None, None
+    parquet_path = Path(path)
+    if not parquet_path.exists():
+        raise FileNotFoundError(parquet_path)
+    if parquet_path.suffix == ".parquet":
+        df = pd.read_parquet(parquet_path)
+    else:
+        df = pd.read_csv(parquet_path)
+    if "filename" not in df.columns:
+        raise ValueError(f"{parquet_path}: missing 'filename' column (schema: {PSEUDO_PARQUET_META_COLS} + 234 class cols)")
+    if "start_sec" not in df.columns:
+        if "start_seconds" in df.columns:
+            df = df.rename(columns={"start_seconds": "start_sec"})
+        else:
+            raise ValueError(f"{parquet_path}: missing 'start_sec' column")
+    if "file_confidence" not in df.columns:
+        df["file_confidence"] = 1.0
+    missing = [label for label in classes if label not in df.columns]
+    if missing:
+        raise ValueError(f"{parquet_path}: missing {len(missing)} class columns e.g. {missing[:5]}")
+    soft = np.clip(np.nan_to_num(df[classes].to_numpy(dtype=np.float32), nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
+    meta = df[list(PSEUDO_PARQUET_META_COLS)].reset_index(drop=True)
+    return meta, soft
 
 
 def seed_everything(seed: int) -> None:
@@ -1001,6 +1104,11 @@ def train(args: argparse.Namespace) -> Path:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     classes = load_classes(competition_dir)
+    if args.ssm_head:
+        # T2-B: bidirectional SSM / prototype head over Perch embedding sequences,
+        # optionally wrapped in the T2-A noisy-student loop. Distinct from the
+        # EfficientNet mel pipeline below; returns its own checkpoint.
+        return train_ssm_noisy_student(args, classes, output_dir)
     frame = build_train_audio_frame(competition_dir, classes, max_files=args.max_train_files)
     frame = add_folds(frame, args.n_folds, args.seed)
     train_frame, val_frame, validation_fold = split_train_val(frame, args.fold)
