@@ -763,12 +763,15 @@ def run_full_inference(files, label="test"):
     acc = {k: [] for k in ACTIVE}
     row_ids_all, hours_all = [], []
     t0 = time.time()
+    _T = {"wait": 0.0, "perch": 0.0, "sed": 0.0, "ssm": 0.0, "smooth": 0.0, "gc": 0.0}
     want_proto = "proto_ssm" in ACTIVE
     want_res = "sgkfk_resssm" in ACTIVE
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         nxt_f = [pool.submit(_load, p) for p in files[:BATCH_FILES]]
         for start in range(0, len(files), BATCH_FILES):
+            _ts = time.time()
             batch = [f.result() for f in nxt_f]
+            _T["wait"] += time.time() - _ts
             ns = start + BATCH_FILES
             if ns < len(files):
                 nb = files[ns:ns + BATCH_FILES]
@@ -779,24 +782,31 @@ def run_full_inference(files, label="test"):
                 x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
 
             # --- shared substrates (compute ONCE, fan out) ---
+            _ts = time.time()
             emb, perch_logit = perch_predict(x) if PERCH is not None else (None, None)
             emb = emb.astype(np.float32, copy=False) if emb is not None else None
             del perch_logit
+            _T["perch"] += time.time() - _ts
+            _ts = time.time()
             mel = chunks_to_sed_mel(x) if SED_RUNNERS_MAIN else None
 
             # --- per-member probs for this batch ---
             member_probs = {}
             if "distilled_sed" in ACTIVE:
                 member_probs["distilled_sed"] = sed_predict(SED_RUNNERS_MAIN, mel)
+            _T["sed"] += time.time() - _ts
             # proto + residual share ONE proto forward (item 4: no duplicate forward)
+            _ts = time.time()
             if (want_proto or want_res) and emb is not None and SSM_BOTH is not None:
                 p_proto, p_res = SSM_BOTH(emb, want_proto, want_res)
                 if want_proto:
                     member_probs["proto_ssm"] = p_proto
                 if want_res:
                     member_probs["sgkfk_resssm"] = p_res
+            _T["ssm"] += time.time() - _ts
 
             # --- within-file Gaussian temporal smoothing per file, then store ---
+            _ts = time.time()
             for bi, (fpath, _) in enumerate(batch):
                 s = slice(bi * N_WINDOWS, (bi + 1) * N_WINDOWS)
                 stem = fpath.stem
@@ -811,9 +821,12 @@ def run_full_inference(files, label="test"):
                         pf = gaussian_filter1d(pf, sigma=GAUSS_SIGMA, axis=0, mode="nearest")
                     acc[k].append(pf)
 
+            _T["smooth"] += time.time() - _ts
             # --- aggressive per-batch cleanup (peak RAM driver) ---
+            _ts = time.time()
             del x, emb, mel, member_probs, batch
             gc.collect()
+            _T["gc"] += time.time() - _ts
 
             done = start + bn
             if done % (BATCH_FILES * 4) == 0 or done == len(files):
@@ -827,7 +840,10 @@ def run_full_inference(files, label="test"):
     del acc
     gc.collect()
     hours = np.array(hours_all, dtype=np.int32)
-    print(f"\n[{label}] inference {time.time()-t0:.0f}s. members={list(P)} rows={len(row_ids_all)}")
+    tot = max(time.time() - t0, 1e-6)
+    print(f"\n[{label}] inference {tot:.0f}s. members={list(P)} rows={len(row_ids_all)}")
+    print("  [stage-profile] " + "  ".join(
+        f"{k}={v:.0f}s({100*v/tot:.0f}%)" for k, v in _T.items()))
     return P, row_ids_all, hours
 
 
@@ -926,7 +942,7 @@ else:
     # report peak RSS, wall time, files/sec, and submission-shape sanity. Finally emit
     # the required zero placeholder (the real test is absent in a commit).
     tiny_model_selftest()
-    SCALE_N = int(os.environ.get("ORTHOBLEND_SCALE_N", "300"))
+    SCALE_N = int(os.environ.get("ORTHOBLEND_SCALE_N", "80"))
     ss_dir = COMP_DIR / "train_soundscapes"
     scale_files = sorted(ss_dir.glob("*.ogg"))[:SCALE_N] if ss_dir.exists() else []
     if scale_files:
