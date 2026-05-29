@@ -99,3 +99,39 @@ moonshot, and it's exactly why pre-computing pseudo-labels now (T1-5) matters. *
 2. T1-5: kick the pseudo-label pre-compute (CPU notebook on Kaggle — many can run without GPU).
 3. T1-3: prototype the 28-class stack on the labeled-soundscape OOF.
 4. Code T2-A/T2-B so they're commit-ready for the GPU reset.
+
+---
+
+# ✅ SPRINT DELIVERABLES & HANDOFF (built + verified this window)
+
+| deliverable | path | status |
+|---|---|---|
+| Local macro-AUC proxy + rank-blend search | `agents/a4_rankblend.py`, `t1_blend_search.py` | ✅ ran; calibration-invariance + leakage proven |
+| **LOSO validation** | `agents/t1_loso_validate.py`, `02_T1_BLEND_RESULT.md` | ✅ **BirdMAE +0.004 confirmed real**; leaky helpers rejected |
+| **Pseudo-label pre-compute** (B1) | `pseudo_label_precompute/` | ✅ end-to-end tested; CPU Kaggle kernel; schema documented |
+| **Noisy-student + Bi-SSD/proto head** (B2) | `g124_2025pre_pseudo/{ssm_head,noisy_student,run_ssm_smoke}.py` | ✅ smoke 1.7s, **21/21 tests**, 422k params, 10.1 MFLOP/file |
+| **Orthoblend inference notebook** (B3) | `inference_notebooks/sprint_orthoblend/` | ✅ compiles; live mounts verified; **~26–32 min / 90** |
+| B1→B2 schema reconciliation | `train_g124.py load_pseudo_parquet` | ✅ integration-tested (win_confidence carried) |
+
+## Execution sequence
+**Now, GPU-free (CPU):**
+1. Run B1 `pseudo_label_precompute/` as a Kaggle CPU utility kernel → produces the soft-label
+   dataset (~2–3.7 h, inside the 12 h limit).
+2. Submit B3 `sprint_orthoblend/` as the inference notebook → catches up to the 0.950 base AND
+   adds the unexploited orthogonal `tonylica`/`sgkfk` members (LB-measure the orthogonal lift).
+
+**The instant GPU resets:**
+3. Train B2: `python train_g124.py --ssm-head --perch-embeddings perch.npz
+   --pseudo-parquet <B1 output> --noisy-student-rounds 4 --ns-final-tss` → `g124_ssm_fold1_fp16.pt`.
+4. Package the trained g124 as a Kaggle dataset; add it to B3's `ENSEMBLE` config as a real
+   orthogonal member; wire the validated **BirdMAE** branch (TODO marked in B3).
+
+## Known issue (pre-existing, not from this sprint)
+`g124_2025pre_pseudo/tests/test_g124_assets.py` is uncollectable — it imports
+`evidence_*`/`run_kaggle_evidence_traces` modules that the earlier "work" commit never
+committed (`git ls-files` confirms none tracked). Either commit those modules or trim the test.
+
+## Honest projection (unchanged, now evidence-backed)
+T1 plays (base catch-up + orthogonal blend + 28-class stack) → realistic **0.953–0.957**.
+Crossing **0.958–0.96** needs B2's noisy-student g124 landing as a real diverse member
+(why B1's pseudo-labels are pre-computed now). 0.96 = stretch; mid-0.95 = strong realistic.
