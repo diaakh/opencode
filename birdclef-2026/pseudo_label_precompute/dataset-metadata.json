@@ -1,0 +1,11 @@
+{
+  "title": "BirdCLEF 2026 soft pseudo-labels (train_soundscapes)",
+  "id": "adkasd/birdclef-2026-soft-pseudo-labels",
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "subtitle": "Soft teacher targets on the 10,592 unlabeled train_soundscapes for noisy-student",
+  "description": "SOFT pseudo-labels for noisy-student self-distillation (BirdCLEF+ 2026, T2-A).\n\nProduced by a CPU-only Kaggle utility kernel (pseudo_label_precompute/precompute_pseudo_labels.py) that runs the best PUBLIC inference-only ensemble over the unlabeled train_soundscapes:\n  * Perch v2 ONNX branch  (tuckerarrants/perch-v2-no-dft-onnx) — 234-class species head + 1536-D embedding.\n  * Distilled-SED ONNX    (tuckerarrants/bc2026-distilled-sed-public) — AttBlockV2 SED, clip+frame logits.\n\nBLEND: 0.950 public anchor's dominant branch — z = 0.60*R(p_perch) + 0.40*R(p_sed), R = class-wise percentile rank (rank-blend).\nSOFT-LABEL RULE (2025 5th-place / Nikita 1st-place, verified): power_transform(p) = clamp(p*(p>0.3) + p**2, 0, 1). These are the post-power-transform SOFT probabilities. The downstream hard-label MIXING (alpha=0.7: label = 0.7*soft + 0.3*hard) is applied in the TRAINING loop, NOT baked into this artifact.\n\nFILES:\n  - pseudo_soft_per_window.parquet : columns filename, start_sec, window_idx, row_id, win_confidence, then 234 soft species scores. 12 windows (5 s each) per file.\n  - pseudo_soft_per_window.npz     : compact mirror (soft[N,234], filename, start_sec, window_idx, classes).\n  - pseudo_soft_per_file.parquet   : per-file aggregate (max over windows) with a file_confidence column + 234 scores.\n  - manifest.json                  : full schema + blend/transform/alpha consumption contract.\n\nSee pseudo_label_precompute/README.md in the source repo for the noisy-student consumption contract."
+}

@@ -1,0 +1,19 @@
+{
+  "id": "adkasd/bc26-pseudo-label-precompute-cpu",
+  "title": "BC26 Pseudo-Label Precompute (CPU)",
+  "code_file": "precompute_pseudo_labels.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": ["birdclef-2026"],
+  "dataset_sources": [
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "tuckerarrants/bc2026-distilled-sed-public"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}

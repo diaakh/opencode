@@ -1,0 +1,28 @@
+{
+  "id": "adkasd/birdclef-2026-sprint-orthoblend",
+  "title": "birdclef 2026 sprint orthoblend",
+  "code_file": "sprint_orthoblend.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "dataset_sources": [
+    "tuckerarrants/bc2026-distilled-sed-public",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "hideyukizushi/sgkfk-202604041716",
+    "tonylica/birdclef-2026-model",
+    "adkasd/birdclef-2026-priors-research"
+  ],
+  "kernel_sources": [
+    "hideyukizushi/bird26-reprod-perch-proto-residualssm-train-s7177"
+  ],
+  "model_sources": [
+    "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
+  ]
+}
