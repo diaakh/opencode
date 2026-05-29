@@ -77,7 +77,8 @@ ENSEMBLE = {
     "distilled_sed": 0.40, # tuckerarrants 5-fold distilled SED (dominant)
 
     # --- live UNEXPLOITED orthogonal trained members (T1-2) — low rank-weight ---
-    "tonylica":    0.10,   # tonylica/birdclef-2026-model  (rank-5 team, 0 importers)
+    # tonylica DROPPED: its xsed/sed_fold*.onnx are byte-identical to distilled_sed
+    # (self-test proved mean|Δ|=0.00000) — it double-counts the SED member, no diversity.
     "sgkfk_resssm":0.08,   # hideyukizushi ResidualSSM (sgkfk dataset) — diversity branch
 
     # --- validated members — need asset+branch wired before enabling ---
@@ -300,13 +301,19 @@ def sed_predict(runners, mel):
 # CELL 5 — PERCH EMBEDDING + ProtoSSM / ResidualSSM members
 # ============================================================================
 # Perch ONNX -> (emb 1536, logits 234) per window. The ProtoSSM/ResidualSSM heads
-# (sgkfk) consume the Perch embedding sequence. Their exact torch architecture is in
-# the sgkfk train kernel (d_model=256, n_ssm_layers=3, cross-attention). To keep this
-# notebook robust & self-contained on CPU we:
-#   (a) ALWAYS compute Perch embeddings + Perch logits (the proto branch's substrate),
-#   (b) load the ProtoSSM / ResidualSSM .pt heads if torch + a compatible state_dict
-#       load succeeds; otherwise fall back to the Perch logits as the proto member
-#       (graceful degrade — still the dominant-branch signal, just without the SSM head).
+# (sgkfk) consume the Perch embedding *sequence* (12 windows/file). Their exact torch
+# architecture is ported verbatim below from the sgkfk training kernel
+# (hideyukizushi/bird26-reprod-perch-proto-residualssm-train). The checkpoint tensor
+# shapes are ground truth and dictate the init config (verified strict=True load):
+#   ProtoSSMv2:  d_model=320 d_state=32 n_ssm_layers=4 n_sites=20 meta_dim=24
+#                use_cross_attn=True cross_attn_heads=8  + family_head(5)
+#   ResidualSSM: d_model=128 d_state=16 n_sites=20 meta_dim=8 (input 1536+234=1770)
+# Two-pass flow (faithful to train): proto_logits = ProtoSSM(emb); refined =
+# proto_logits + ResidualSSM(emb, proto_logits). We feed perch_logits=None so the
+# proto head uses its prototype-similarity branch (the no-DFT Perch ONNX emits
+# embeddings only — no classifier head — so a real perch_logit fusion is unavailable;
+# the gated-fusion alpha was trained but the prototype branch alone is non-degenerate
+# and is the faithful path given the embeddings-only ONNX, see PERCH-LOGITS note).
 PERCH = OnnxRunner(PERCH_ONNX, n_outputs_keep=2) if PERCH_ONNX else None
 
 
@@ -327,39 +334,250 @@ def perch_predict(x):
     return emb, logit
 
 
-# ---- ProtoSSM / ResidualSSM heads (best-effort torch load) ----
+# ---- ProtoSSM / ResidualSSM torch heads (ported from the sgkfk train kernel) ----
 _TORCH = None
 try:
-    import torch as _TORCH  # noqa
+    import torch  # noqa
+    import torch.nn as nn
+    import torch.nn.functional as F
+    _TORCH = torch
 except Exception:
     _TORCH = None
 
 
-def _try_load_ssm(pt_path):
-    """Best-effort: return a callable emb_seq->(N,234) prob, or None if not loadable.
-    We do NOT hard-fail; if the head can't be reconstructed we degrade to Perch logits."""
-    if _TORCH is None or pt_path is None or not Path(pt_path).exists():
-        return None
-    try:
-        ckpt = _TORCH.load(str(pt_path), map_location="cpu", weights_only=False)
-        # The sgkfk heads are TorchScript-able in some exports; try a scripted call.
-        if hasattr(ckpt, "eval"):
-            mdl = ckpt.eval()
+if _TORCH is not None:
+    class SelectiveSSM(nn.Module):
+        """Simplified Mamba-style selective SSM (sequential scan over T=12 windows)."""
+        def __init__(self, d_model, d_state=16, d_conv=4):
+            super().__init__()
+            self.d_model = d_model
+            self.d_state = d_state
+            self.in_proj = nn.Linear(d_model, 2 * d_model, bias=False)
+            self.conv1d = nn.Conv1d(d_model, d_model, d_conv, padding=d_conv - 1, groups=d_model)
+            self.dt_proj = nn.Linear(d_model, d_model, bias=True)
+            A = torch.arange(1, d_state + 1, dtype=torch.float32).unsqueeze(0).expand(d_model, -1)
+            self.A_log = nn.Parameter(torch.log(A))
+            self.D = nn.Parameter(torch.ones(d_model))
+            self.B_proj = nn.Linear(d_model, d_state, bias=False)
+            self.C_proj = nn.Linear(d_model, d_state, bias=False)
+            self.out_proj = nn.Linear(d_model, d_model, bias=False)
 
-            def _fn(emb):
-                with _TORCH.no_grad():
-                    t = _TORCH.from_numpy(emb).float()
-                    out = mdl(t)
-                    out = out[0] if isinstance(out, (tuple, list)) else out
-                    return _sigmoid(out.cpu().numpy())
-            return _fn
-    except Exception as e:
-        print(f"[ssm] {Path(pt_path).name} not directly loadable ({e}); degrade to Perch logits.")
-    return None
+        def forward(self, x):
+            B_size, T, D = x.shape
+            xz = self.in_proj(x)
+            x_ssm, z = xz.chunk(2, dim=-1)
+            x_conv = self.conv1d(x_ssm.transpose(1, 2))[:, :, :T].transpose(1, 2)
+            x_conv = F.silu(x_conv)
+            dt = F.softplus(self.dt_proj(x_conv))
+            A = -torch.exp(self.A_log)
+            B = self.B_proj(x_conv)
+            C = self.C_proj(x_conv)
+            h = torch.zeros(B_size, D, self.d_state, device=x.device)
+            ys = []
+            for t in range(T):
+                dt_t = dt[:, t, :]
+                dA = torch.exp(A[None, :, :] * dt_t[:, :, None])
+                dB = dt_t[:, :, None] * B[:, t, None, :]
+                h = h * dA + x[:, t, :, None] * dB
+                ys.append((h * C[:, t, None, :]).sum(-1))
+            return torch.stack(ys, dim=1) + x * self.D[None, None, :]
+
+    class TemporalCrossAttention(nn.Module):
+        def __init__(self, d_model, n_heads=4, dropout=0.1):
+            super().__init__()
+            self.attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout, batch_first=True)
+            self.norm = nn.LayerNorm(d_model)
+            self.ffn = nn.Sequential(
+                nn.Linear(d_model, d_model * 2), nn.GELU(), nn.Dropout(dropout),
+                nn.Linear(d_model * 2, d_model), nn.Dropout(dropout))
+            self.norm2 = nn.LayerNorm(d_model)
+
+        def forward(self, x):
+            residual = x
+            x = self.norm(x)
+            attn_out, _ = self.attn(x, x, x)
+            x = residual + attn_out
+            residual = x
+            x = self.norm2(x)
+            return residual + self.ffn(x)
+
+    class ProtoSSMv2(nn.Module):
+        def __init__(self, d_input=1536, d_model=320, d_state=32, n_ssm_layers=4,
+                     n_classes=234, n_windows=12, dropout=0.2, n_sites=20, meta_dim=24,
+                     use_cross_attn=True, cross_attn_heads=8):
+            super().__init__()
+            self.d_model = d_model
+            self.n_classes = n_classes
+            self.n_windows = n_windows
+            self.input_proj = nn.Sequential(
+                nn.Linear(d_input, d_model), nn.LayerNorm(d_model), nn.GELU(), nn.Dropout(dropout))
+            self.pos_enc = nn.Parameter(torch.randn(1, n_windows, d_model) * 0.02)
+            self.site_emb = nn.Embedding(n_sites, meta_dim)
+            self.hour_emb = nn.Embedding(24, meta_dim)
+            self.meta_proj = nn.Linear(2 * meta_dim, d_model)
+            self.ssm_fwd = nn.ModuleList()
+            self.ssm_bwd = nn.ModuleList()
+            self.ssm_merge = nn.ModuleList()
+            self.ssm_norm = nn.ModuleList()
+            for _ in range(n_ssm_layers):
+                self.ssm_fwd.append(SelectiveSSM(d_model, d_state))
+                self.ssm_bwd.append(SelectiveSSM(d_model, d_state))
+                self.ssm_merge.append(nn.Linear(2 * d_model, d_model))
+                self.ssm_norm.append(nn.LayerNorm(d_model))
+            self.ssm_drop = nn.Dropout(dropout)
+            self.use_cross_attn = use_cross_attn
+            if use_cross_attn:
+                self.cross_attn = TemporalCrossAttention(d_model, n_heads=cross_attn_heads, dropout=dropout)
+            self.prototypes = nn.Parameter(torch.randn(n_classes, d_model) * 0.02)
+            self.proto_temp = nn.Parameter(torch.tensor(5.0))
+            self.class_bias = nn.Parameter(torch.zeros(n_classes))
+            self.fusion_alpha = nn.Parameter(torch.zeros(n_classes))
+            self.n_families = 0
+            self.family_head = None
+
+        def init_family_head(self, n_families, class_to_family):
+            self.n_families = n_families
+            self.family_head = nn.Linear(self.d_model, n_families)
+            self.register_buffer('class_to_family', torch.tensor(class_to_family, dtype=torch.long))
+
+        def forward(self, emb, perch_logits=None, site_ids=None, hours=None):
+            B, T, _ = emb.shape
+            h = self.input_proj(emb)
+            h = h + self.pos_enc[:, :T, :]
+            if site_ids is not None and hours is not None:
+                meta = self.meta_proj(torch.cat([self.site_emb(site_ids), self.hour_emb(hours)], dim=-1))
+                h = h + meta[:, None, :]
+            for fwd, bwd, merge, norm in zip(self.ssm_fwd, self.ssm_bwd, self.ssm_merge, self.ssm_norm):
+                residual = h
+                h_f = fwd(h)
+                h_b = bwd(h.flip(1)).flip(1)
+                h = merge(torch.cat([h_f, h_b], dim=-1))
+                h = self.ssm_drop(h)
+                h = norm(h + residual)
+            if self.use_cross_attn:
+                h = self.cross_attn(h)
+            h_norm = F.normalize(h, dim=-1)
+            p_norm = F.normalize(self.prototypes, dim=-1)
+            temp = F.softplus(self.proto_temp)
+            sim = torch.matmul(h_norm, p_norm.T) * temp + self.class_bias[None, None, :]
+            if perch_logits is not None:
+                alpha = torch.sigmoid(self.fusion_alpha)[None, None, :]
+                species_logits = alpha * sim + (1 - alpha) * perch_logits
+            else:
+                species_logits = sim
+            family_logits = None
+            if self.family_head is not None:
+                family_logits = self.family_head(h.mean(dim=1))
+            return species_logits, family_logits, h
+
+    class ResidualSSM(nn.Module):
+        def __init__(self, d_input=1536, d_scores=234, d_model=128, d_state=16,
+                     n_classes=234, n_windows=12, dropout=0.1, n_sites=20, meta_dim=8):
+            super().__init__()
+            self.d_model = d_model
+            self.n_classes = n_classes
+            self.input_proj = nn.Sequential(
+                nn.Linear(d_input + d_scores, d_model), nn.LayerNorm(d_model), nn.GELU(), nn.Dropout(dropout))
+            self.site_emb = nn.Embedding(n_sites, meta_dim)
+            self.hour_emb = nn.Embedding(24, meta_dim)
+            self.meta_proj = nn.Linear(2 * meta_dim, d_model)
+            self.pos_enc = nn.Parameter(torch.randn(1, n_windows, d_model) * 0.02)
+            self.ssm_fwd = SelectiveSSM(d_model, d_state)
+            self.ssm_bwd = SelectiveSSM(d_model, d_state)
+            self.ssm_merge = nn.Linear(2 * d_model, d_model)
+            self.ssm_norm = nn.LayerNorm(d_model)
+            self.ssm_drop = nn.Dropout(dropout)
+            self.output_head = nn.Linear(d_model, n_classes)
+
+        def forward(self, emb, first_pass_scores, site_ids=None, hours=None):
+            B, T, _ = emb.shape
+            x = torch.cat([emb, first_pass_scores], dim=-1)
+            h = self.input_proj(x)
+            if site_ids is not None and hours is not None:
+                site_e = self.site_emb(site_ids.clamp(0, self.site_emb.num_embeddings - 1))
+                hour_e = self.hour_emb(hours.clamp(0, 23))
+                meta = self.meta_proj(torch.cat([site_e, hour_e], dim=-1))
+                h = h + meta.unsqueeze(1)
+            h = h + self.pos_enc[:, :T, :]
+            residual = h
+            h_f = self.ssm_fwd(h)
+            h_b = self.ssm_bwd(h.flip(1)).flip(1)
+            h = self.ssm_merge(torch.cat([h_f, h_b], dim=-1))
+            h = self.ssm_drop(h)
+            h = self.ssm_norm(h + residual)
+            return self.output_head(h)
 
 
-PROTO_HEAD = _try_load_ssm(PROTO_SSM_PT)
-RESSSM_HEAD = _try_load_ssm(RESSSM_PT)
+def _emb_to_seq(emb):
+    """Flat (N,1536) -> (N//12, 12, 1536) torch float tensor. N must be a multiple of 12."""
+    n = emb.shape[0]
+    nf = n // N_WINDOWS
+    t = _TORCH.from_numpy(np.ascontiguousarray(emb)).float()
+    return t.view(nf, N_WINDOWS, emb.shape[1])
+
+
+class _SSMHeads:
+    """Loads ProtoSSM + ResidualSSM with strict=True and runs the faithful two-pass.
+
+    Exposes:
+      .proto(emb_flat)  -> (N,234) proto-branch probs  (sigmoid of proto species_logits)
+      .resssm(emb_flat) -> (N,234) refined probs        (sigmoid(proto_logits + correction))
+    Both accept the flat (N,1536) Perch embeddings the inference loop already produces,
+    reshape to (files,12,1536), and flatten the (files,12,234) output back to (N,234).
+    perch_logits / site_ids / hours are passed as None (no-DFT ONNX has no classifier
+    head; the prototype-similarity branch is non-degenerate on its own)."""
+
+    def __init__(self, proto_pt, res_pt):
+        self.ok_proto = False
+        self.ok_res = False
+        self.proto_model = None
+        self.res_model = None
+        if _TORCH is None:
+            return
+        if proto_pt is not None and Path(proto_pt).exists():
+            m = ProtoSSMv2(d_input=1536, d_model=320, d_state=32, n_ssm_layers=4,
+                           n_classes=NUM_CLASSES, n_windows=N_WINDOWS, n_sites=20,
+                           meta_dim=24, use_cross_attn=True, cross_attn_heads=8)
+            m.init_family_head(5, [0] * NUM_CLASSES)
+            sd = _TORCH.load(str(proto_pt), map_location="cpu")
+            m.load_state_dict(sd, strict=True)
+            m.eval()
+            self.proto_model = m
+            self.ok_proto = True
+            print(f"[ssm] ProtoSSMv2 loaded strict from {Path(proto_pt).name}")
+        if res_pt is not None and Path(res_pt).exists():
+            r = ResidualSSM(d_input=1536, d_scores=NUM_CLASSES, d_model=128, d_state=16,
+                            n_classes=NUM_CLASSES, n_windows=N_WINDOWS, n_sites=20, meta_dim=8)
+            sd = _TORCH.load(str(res_pt), map_location="cpu")
+            r.load_state_dict(sd, strict=True)
+            r.eval()
+            self.res_model = r
+            self.ok_res = True
+            print(f"[ssm] ResidualSSM loaded strict from {Path(res_pt).name}")
+
+    def _proto_logits(self, emb_flat):
+        seq = _emb_to_seq(emb_flat)
+        with _TORCH.no_grad():
+            species_logits, _, _ = self.proto_model(seq, perch_logits=None)
+        return species_logits  # (files,12,234)
+
+    def proto(self, emb_flat):
+        logits = self._proto_logits(emb_flat)
+        return _sigmoid(logits.reshape(-1, NUM_CLASSES).cpu().numpy())
+
+    def resssm(self, emb_flat):
+        # faithful two-pass: refined = proto_logits + ResidualSSM(emb, proto_logits)
+        logits = self._proto_logits(emb_flat)
+        seq = _emb_to_seq(emb_flat)
+        with _TORCH.no_grad():
+            correction = self.res_model(seq, logits)
+            refined = logits + correction
+        return _sigmoid(refined.reshape(-1, NUM_CLASSES).cpu().numpy())
+
+
+_SSM = _SSMHeads(PROTO_SSM_PT, RESSSM_PT)
+PROTO_HEAD = (lambda emb: _SSM.proto(emb)) if _SSM.ok_proto else None
+RESSSM_HEAD = (lambda emb: _SSM.resssm(emb)) if (_SSM.ok_proto and _SSM.ok_res) else None
 
 
 # ============================================================================
@@ -481,10 +699,9 @@ SED_RUNNERS_TONY = build_sed_runners(TONYLICA_XSED_DIR)     # tonylica xsed fold
 # Which members are actually available (gate by mount). Drop missing & renormalize.
 def member_available(name):
     return {
-        "proto_ssm":   PERCH is not None,             # always have Perch substrate
+        "proto_ssm":   PERCH is not None and PROTO_HEAD is not None,  # need the loaded SSM head
         "distilled_sed": len(SED_RUNNERS_MAIN) > 0,
-        "tonylica":    len(SED_RUNNERS_TONY) > 0,
-        "sgkfk_resssm": PERCH is not None,             # ResidualSSM head or Perch-logit degrade
+        "sgkfk_resssm": PERCH is not None and RESSSM_HEAD is not None,  # need both SSM heads
         "birdmae":     False,                          # validation-pending (toggle in ENSEMBLE)
         "perch20":     False,
     }.get(name, False)
@@ -515,28 +732,43 @@ if not test_files:
             print(f"  [selftest] {nm:14s} shape={a.shape} min={a.min():.4f} "
                   f"max={a.max():.4f} std={a.std():.4f} {'OK' if ok else 'DEGENERATE!!'}")
             return ok
+        # good == verdict over the ACTIVE ensemble members only. The perch_logit line
+        # below is INFORMATIONAL: the no-DFT Perch ONNX emits embeddings only (no
+        # classifier head), so perch_logit is expected all-zero and proto/resssm run
+        # with perch_logits=None (prototype-similarity branch). It does NOT gate the verdict.
         good = True
         if PERCH is not None:
             emb, perch_logit = perch_predict(xw)
-            good &= _stat("perch_logit", perch_logit); good &= _stat("perch_emb", emb)
+            _stat("perch_logit", perch_logit)          # informational (expected zero)
+            good &= _stat("perch_emb", emb)             # embeddings MUST be non-degenerate
         else:
             emb = perch_logit = None
+        # tonylica xsed folds were DROPPED from the ensemble (byte-identical to
+        # distilled_sed). We still run the orthogonality probe here purely to DOCUMENT
+        # that decision; it is informational and does not gate the verdict.
         mel = chunks_to_sed_mel(xw) if (SED_RUNNERS_MAIN or SED_RUNNERS_TONY) else None
         if SED_RUNNERS_MAIN: good &= _stat("distilled_sed", sed_predict(SED_RUNNERS_MAIN, mel))
-        if SED_RUNNERS_TONY: good &= _stat("tonylica_sed", sed_predict(SED_RUNNERS_TONY, mel))
-        # confirm the two SED members are NOT identical (orthogonality check)
+        if SED_RUNNERS_TONY:
+            _stat("tonylica_sed", sed_predict(SED_RUNNERS_TONY, mel))  # informational
         if SED_RUNNERS_MAIN and SED_RUNNERS_TONY:
             d = float(np.abs(sed_predict(SED_RUNNERS_MAIN, mel)
                              - sed_predict(SED_RUNNERS_TONY, mel)).mean())
             print(f"  [selftest] distilled_sed vs tonylica mean|Δ|={d:.5f} "
-                  f"{'(distinct OK)' if d > 1e-4 else '(IDENTICAL — orthogonality lost!)'}")
+                  f"{'(distinct)' if d > 1e-4 else '(IDENTICAL — correctly DROPPED from ensemble)'}")
         if emb is not None and PROTO_HEAD is not None:
             try: good &= _stat("proto_ssm", PROTO_HEAD(emb))
-            except Exception as e: print(f"  [selftest] proto_ssm head FAILED: {e}")
+            except Exception as e:
+                good = False; print(f"  [selftest] proto_ssm head FAILED: {e}")
         if emb is not None and RESSSM_HEAD is not None:
             try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb))
-            except Exception as e: print(f"  [selftest] resssm head FAILED: {e}")
-        print(f"  [selftest] RESULT: {'ALL MODELS PRODUCE SANE OUTPUT ✓' if good else 'DEGENERATE OUTPUT ✗'}")
+            except Exception as e:
+                good = False; print(f"  [selftest] resssm head FAILED: {e}")
+        # confirm proto_ssm and sgkfk_resssm are genuinely distinct (two-pass refinement)
+        if emb is not None and PROTO_HEAD is not None and RESSSM_HEAD is not None:
+            dd = float(np.abs(PROTO_HEAD(emb) - RESSSM_HEAD(emb)).mean())
+            print(f"  [selftest] proto_ssm vs sgkfk_resssm mean|Δ|={dd:.5f} "
+                  f"{'(distinct OK)' if dd > 1e-5 else '(IDENTICAL — residual head no-op!)'}")
+        print(f"  [selftest] RESULT: {'ALL ACTIVE MEMBERS PRODUCE SANE OUTPUT ✓' if good else 'DEGENERATE OUTPUT ✗'}")
     else:
         print("  [selftest] no train_soundscapes available to probe.")
     out = samp.copy(); out.iloc[:, 1:] = 0.0
@@ -570,27 +802,16 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         mel = chunks_to_sed_mel(x) if (SED_RUNNERS_MAIN or SED_RUNNERS_TONY) else None
 
         # --- per-member probs for this batch ---
+        # proto_ssm / sgkfk_resssm are only in ACTIVE when their torch heads loaded
+        # strict (member_available gates on PROTO_HEAD / RESSSM_HEAD), so the real
+        # SSM two-pass runs here — no silent perch-logit degrade.
         member_probs = {}
         if "distilled_sed" in ACTIVE:
             member_probs["distilled_sed"] = sed_predict(SED_RUNNERS_MAIN, mel)
-        if "tonylica" in ACTIVE:
-            member_probs["tonylica"] = sed_predict(SED_RUNNERS_TONY, mel)
         if "proto_ssm" in ACTIVE:
-            if PROTO_HEAD is not None:
-                try:
-                    member_probs["proto_ssm"] = PROTO_HEAD(emb)
-                except Exception:
-                    member_probs["proto_ssm"] = _sigmoid(perch_logit)
-            else:
-                member_probs["proto_ssm"] = _sigmoid(perch_logit)  # degrade to Perch logits
+            member_probs["proto_ssm"] = PROTO_HEAD(emb)
         if "sgkfk_resssm" in ACTIVE:
-            if RESSSM_HEAD is not None:
-                try:
-                    member_probs["sgkfk_resssm"] = RESSSM_HEAD(emb)
-                except Exception:
-                    member_probs["sgkfk_resssm"] = _sigmoid(perch_logit)
-            else:
-                member_probs["sgkfk_resssm"] = _sigmoid(perch_logit)
+            member_probs["sgkfk_resssm"] = RESSSM_HEAD(emb)
 
         # --- within-file Gaussian temporal smoothing per file, then store ---
         for bi, (fpath, _) in enumerate(batch):
