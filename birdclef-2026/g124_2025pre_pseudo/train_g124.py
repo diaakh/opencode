@@ -167,7 +167,9 @@ def load_pseudo_parquet(path: str | None, classes: list[str]):
         else:
             raise ValueError(f"{parquet_path}: missing 'start_sec' column")
     if "file_confidence" not in df.columns:
-        df["file_confidence"] = 1.0
+        # B1's per-window parquet carries per-window confidence as `win_confidence`;
+        # use it so A6's pseudo-ratio gating sees real confidence, not a constant.
+        df["file_confidence"] = df["win_confidence"] if "win_confidence" in df.columns else 1.0
     missing = [label for label in classes if label not in df.columns]
     if missing:
         raise ValueError(f"{parquet_path}: missing {len(missing)} class columns e.g. {missing[:5]}")
@@ -1093,6 +1095,159 @@ def choose_torch_device():
     except Exception as exc:
         print(f"CUDA unavailable for this torch/image/GPU combination; falling back to CPU: {exc}")
         return torch.device("cpu")
+
+
+def load_perch_embeddings(path: str | None):
+    """Load precomputed Perch embedding sequences.
+
+    Expects an ``.npz`` with arrays ``E`` of shape ``(F, T, D)`` (F files, T windows,
+    D embedding dim) and ``filenames`` of length F. Returns ``(E_tensor, filenames)``
+    or ``(None, None)`` if ``path`` is falsy.
+    """
+    import numpy as np
+    import torch
+
+    if not path:
+        return None, None
+    data = np.load(path, allow_pickle=True)
+    if "E" not in data:
+        raise ValueError(f"{path}: missing 'E' array (expected shape (F,T,D))")
+    embeddings = torch.from_numpy(np.asarray(data["E"], dtype=np.float32))
+    filenames = [str(name) for name in data["filenames"]] if "filenames" in data else None
+    return embeddings, filenames
+
+
+def train_ssm_noisy_student(args: argparse.Namespace, classes: list[str], output_dir: Path) -> Path:
+    """T2-B SSM head training, optionally inside the T2-A noisy-student loop.
+
+    Operates on precomputed Perch embedding sequences (``--perch-embeddings``). Labeled
+    targets come from the soundscape-label CSV / pseudo parquet aligned by filename; the
+    Yao-probe selection score (LB-correlated) chooses the best round. When
+    ``--noisy-student-rounds <= 0`` it trains a single supervised round.
+
+    NOTE: the real run requires ``--perch-embeddings``; this function raises if absent so
+    a misconfigured GPU launch fails fast rather than training on noise. The CPU smoke
+    path is :mod:`run_ssm_smoke`, which synthesizes embeddings in-process.
+    """
+    import numpy as np
+    import torch
+
+    from ssm_head import build_ssm_head, summarize_head, param_count, flops_per_file
+    from noisy_student import (
+        NoiseSchedule,
+        apply_embedding_noise,
+        ensemble_teacher_probs,
+        make_soft_targets,
+        mixup_embeddings,
+        run_noisy_student,
+    )
+
+    if not args.perch_embeddings:
+        raise ValueError(
+            "--ssm-head requires --perch-embeddings (precomputed Perch sequences .npz). "
+            "For a dependency-free CPU check run run_ssm_smoke.py instead."
+        )
+    device = choose_torch_device()
+    head_config = build_ssm_head_config(args)
+    head_config.num_classes = len(classes)
+    print(summarize_head(head_config, n_windows=12))
+    p, f = param_count(head_config), flops_per_file(head_config, n_windows=12)
+    print(f"ssm_head params_total={p['total']} MFLOPs_per_file={f['total'] / 1e6:.3f}")
+
+    embeddings, filenames = load_perch_embeddings(args.perch_embeddings)
+    embeddings = embeddings.to(device)
+    n_files, n_windows, _ = embeddings.shape
+
+    # labeled per-window targets from the labeled-soundscape CSV (aligned by filename);
+    # pseudo soft targets from B1's parquet. Rows without labels stay all-zero (treated
+    # as unlabeled by the soft-target mixer).
+    labeled_targets = torch.zeros(n_files, n_windows, len(classes), device=device)
+    pseudo_meta, pseudo_soft = load_pseudo_parquet(args.pseudo_parquet, classes)
+    if pseudo_meta is not None and filenames is not None:
+        idx_by_name = {name: i for i, name in enumerate(filenames)}
+        soft_seq = torch.zeros(n_files, n_windows, len(classes), device=device)
+        for (filename, start_sec, _conf), row in zip(
+            pseudo_meta.itertuples(index=False, name=None), pseudo_soft
+        ):
+            fi = idx_by_name.get(str(filename))
+            if fi is None:
+                continue
+            wi = int(round(float(start_sec) / max(float(args.window_seconds), 1e-6)))
+            if 0 <= wi < n_windows:
+                soft_seq[fi, wi] = torch.from_numpy(row).to(device)
+        pseudo_targets = soft_seq
+    else:
+        pseudo_targets = torch.zeros_like(labeled_targets)
+
+    # Yao-probe selection: reuse the existing probe CSV machinery for the LB-correlated
+    # score. The probe targets are per-window soft scores over the probe files.
+    probe_E = embeddings
+    probe_target = pseudo_targets.mean(dim=1).detach().cpu().numpy()
+
+    ns_cfg = build_noisy_student_config(args)
+    rounds = max(int(args.noisy_student_rounds), 1)
+    ns_cfg.n_rounds = rounds
+
+    def init_student(_round_idx):
+        return build_ssm_head(head_config).to(device)
+
+    def train_one_round(student, teacher, noise: NoiseSchedule, _round_idx, use_tss):
+        opt = torch.optim.AdamW(student.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        student.train()
+        if teacher is not None:
+            teacher.eval()
+        for _epoch in range(max(int(args.epochs), 1)):
+            opt.zero_grad(set_to_none=True)
+            xb = apply_embedding_noise(embeddings, noise)
+            xb, yb = mixup_embeddings(xb, labeled_targets, noise)
+            loss = torch.nn.functional.binary_cross_entropy_with_logits(student(xb), yb)
+            if teacher is not None:
+                with torch.no_grad():
+                    teacher_probs = ensemble_teacher_probs([teacher(embeddings)])
+                    soft = make_soft_targets(teacher_probs, pseudo_targets, ns_cfg, use_tss=use_tss)
+                xu = apply_embedding_noise(embeddings, noise)
+                loss = loss + torch.nn.functional.binary_cross_entropy_with_logits(student(xu), soft)
+            if not torch.isfinite(loss):
+                raise FloatingPointError("non-finite SSM noisy-student loss")
+            loss.backward()
+            if args.grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(student.parameters(), args.grad_clip)
+            opt.step()
+        return student
+
+    def evaluate(student):
+        student.eval()
+        with torch.no_grad():
+            pred = student(probe_E).sigmoid().mean(dim=1).detach().cpu().numpy()
+        return compute_yao_probe_metrics(pred, probe_target, classes, topk=args.yao_probe_topk)
+
+    best = run_noisy_student(
+        config=ns_cfg,
+        init_student=init_student,
+        train_one_round=train_one_round,
+        evaluate=evaluate,
+        selection_score_fn=lambda m: compute_yao_selection_score(m, val_loss=None),
+        teacher_init=None,
+    )
+    best_path = output_dir / "g124_ssm_fold1_fp16.pt"
+    torch.save(
+        {
+            "state_dict": best.state_dict,
+            "classes": classes,
+            "config": {
+                "head": "BiSSDProtoHead",
+                "ssm_head_config": head_config.__dict__,
+                "noisy_student": ns_cfg.__dict__,
+                "best_round": best.round_idx,
+                "is_tss": best.is_tss,
+                "selection_score": best.selection_score,
+                "param_count": p,
+            },
+        },
+        best_path,
+    )
+    print(f"saved {best_path} best_round={best.round_idx + 1} selection_score={best.selection_score:.5f}")
+    return best_path
 
 
 def train(args: argparse.Namespace) -> Path:
