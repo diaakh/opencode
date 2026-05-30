@@ -1,0 +1,19 @@
+{
+  "id": "adkasd/bc26-zerotrain-specialist",
+  "title": "BC26 ZeroTrain Specialist B0",
+  "code_file": "bc26_zerotrain_specialist.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "adkasd/birdclef-g124-code",
+    "nikitababich/birdclef2025-1st-place-extra-data"
+  ],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": []
+}

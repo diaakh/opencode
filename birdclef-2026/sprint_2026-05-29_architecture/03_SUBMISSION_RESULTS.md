@@ -29,3 +29,16 @@
 - Artifact dataset: `adkasd/bc26-g124-cnn-effv2s` (g124_fold1_fp16.pt + train_audio preds).
 - Perch-INDEPENDENT (mel CNN) → the orthogonal member. Orthogonality vs Perch measured at blend time.
 - NEXT: rank-blend onto the working 0.950 base + submit (measure lift); then noisy-student rounds.
+
+## 28-class strategy — CRITICAL clarification (2026-05-30)
+- The 28 = **25 Insecta anonymized 2026 sonotypes** (`47158son01..25`, iNat 47158, no species name)
+  + 3 Amphibia. **No Xeno-Canto clip maps to the 25 sonotypes** (Nikita's CC0 extra-data is European
+  named grasshoppers — irrelevant to the Neotropical son-IDs). XC specialist covers only ~3/28.
+- Competition ships **train_audio only** — **NO `train_soundscapes_labels.csv`** (2 agents confirmed).
+  So the 28 son-IDs have NO labeled audio anywhere reachable to us.
+- ⇒ **The ONLY route to the 28 is PSEUDO-LABELING the unlabeled soundscapes** (teacher = public
+  distilled-SED, which can score son-IDs) → noisy-student. This is exactly the running pipeline.
+  The XC B0 specialist is a dead end for 25/28 (kept as a diverse ensemble member for the rest).
+- Action: when the pseudo-label precompute finishes, VERIFY the teacher produces non-zero preds for
+  the 28 son-IDs; if yes, the noisy-student rounds can learn them. If the public SED also can't score
+  them, the 28 are stuck at the public baseline for everyone (no public audio exists).
