@@ -39,3 +39,15 @@ birdclef-2026/sprint_2026-05-29_architecture/**/__pycache__/
 # Global Python bytecode (generic)
 **/__pycache__/
 *.pyc
+
+# Kaggle agent throwaway staging/build dirs (not worth tracking)
+bc26_build/
+**/full_push/
+**/smoke_push/
+**/nfnet_push/
+**/effv2s_push/
+**/*_artifact/
+**/*_dataset/
+**/baseout/
+**/v2pull/
+**/vchk/
