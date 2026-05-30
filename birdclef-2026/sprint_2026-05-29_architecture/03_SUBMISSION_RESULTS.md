@@ -21,3 +21,11 @@
 - Keep the orthoblend INFRASTRUCTURE (rank-blend, OpenVINO, self-test, scale-test) — reusable;
   just swap the base members to the 0.950 config.
 - Select final subs by **public-LB + worst-fold** (A7: CV is anti-correlated with LB).
+
+## Orthogonal SED CNN (round-0) trained — 2026-05-30
+- Model: `tf_efficientnetv2_s.in21k` (20.48M), 1ch log-mel (128/2048/512), 5s@32k, BCE, AMP.
+- P100 fix: `pip install torch==2.7.1 torchaudio==2.7.1 torchvision==0.22.1` (cu126, last sm_60 line).
+- Val BCE 0.0251→0.0088 (65 min, no OOM). train_audio top-1 = 0.799 (real signal).
+- Artifact dataset: `adkasd/bc26-g124-cnn-effv2s` (g124_fold1_fp16.pt + train_audio preds).
+- Perch-INDEPENDENT (mel CNN) → the orthogonal member. Orthogonality vs Perch measured at blend time.
+- NEXT: rank-blend onto the working 0.950 base + submit (measure lift); then noisy-student rounds.
