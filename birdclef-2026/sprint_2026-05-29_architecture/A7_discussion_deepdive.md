@@ -251,3 +251,19 @@ contains a real disclosed technique (Tom's 681146 is a Claude-Code automation lo
 - BC2025 5th: github.com/myso1987/BirdCLEF-2025-5th-place-solution (SoftAUCLoss)
 - NOTELA: ICML 2023 Boudiaf et al., arxiv 2302.06658; research.google SFDA blog; google-research/perch
   `chirp/projects/sfda`.
+
+---
+## A8 Nikita dossier — key refinements (see A8_nikita_dossier.md)
+- Nikita = Competitions **Master** (not GM), solo, Ukrainian, DS@Bridgewise. 2024 mid-pack (270/974)
+  → 2025 **1st** → 2026 **#1 (public 0.965)**. The noisy-student recipe IS what made the jump.
+- **His own 2026 forum disclosure:** 2-seed ensemble, **~0.935 without pseudo-labels → ~0.955 WITH**
+  → **pseudo-labeling alone ≈ +0.020** (the single biggest lever, matches our plan). 0.965 is a
+  hand-built classic pipeline; published NOTHING public for 2026.
+- **CC0 ASSET to grab:** `nikitababich/birdclef2025-1st-place-extra-data` (7.47 GB) — Xeno-Canto
+  Insecta/Amphibia clips → directly seeds our 28-class EffNetB0 specialist.
+- **Exact NS per-iter powers:** 1.0, 1/0.65, 1/0.55, 1/0.6 (sharper each round); CE loss; 100%
+  pseudo×labeled MixUp at fixed 0.5.
+- **His mel front-end:** n_mels=224, n_fft=4096, hop=1252, fmax=16k, **20s chunks** (vs our 128/5s)
+  — worth an ablation. Inference polish: neighbor-smoothing [.1,.2,.4,.2,.1] + delta-shift TTA.
+- **7-model heterogeneous SED+GeM** ensemble (EffNet-B0/B3/B4 + RegNetY-008/016 + ECA-NFNet-L0).
+- Validates on **public LB, not CV** (no CV/LB correlation) — again confirmed for 2026.
