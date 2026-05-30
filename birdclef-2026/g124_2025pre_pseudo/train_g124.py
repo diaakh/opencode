@@ -98,6 +98,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ssm-no-bidirectional", action="store_true", default=False)
     parser.add_argument("--ssm-no-mamba-kernel", action="store_true", default=False,
                         help="Force the pure-PyTorch scan even if mamba-ssm is importable (CPU smoke path).")
+    parser.add_argument("--ssm-batch-size", type=int, default=256,
+                        help="Minibatch size (files) for the SSM head; embeddings stream from pinned host memory to the GPU per batch.")
     return parser
 
 
@@ -1117,6 +1119,65 @@ def load_perch_embeddings(path: str | None):
     return embeddings, filenames
 
 
+def load_soundscape_label_targets(path, filenames, classes, n_windows, window_seconds=5.0):
+    """Build host-side per-window hard targets (n_files,n_windows,C) from a labeled
+    train_soundscapes CSV (columns: filename, start_sec/start_seconds, then class codes,
+    or a long primary_label form). Returns an all-zero tensor when ``path`` is absent so
+    the supervised term is simply skipped (round-0 becomes teacher-free no-op until
+    pseudo-labels arrive)."""
+    import numpy as np
+    import torch
+
+    targets = torch.zeros(len(filenames or []), n_windows, len(classes))
+    if not path or filenames is None or not Path(path).exists():
+        return targets
+    df = pd.read_csv(path)
+    idx_by_name = {name: i for i, name in enumerate(filenames)}
+    cls_idx = {c: j for j, c in enumerate(classes)}
+    start_col = "start_sec" if "start_sec" in df.columns else (
+        "start_seconds" if "start_seconds" in df.columns else None
+    )
+    wide_cls = [c for c in df.columns if c in cls_idx]
+    for row in df.itertuples(index=False):
+        d = row._asdict()
+        fn = str(d.get("filename", ""))
+        fi = idx_by_name.get(fn)
+        if fi is None:
+            continue
+        wi = int(round(float(d.get(start_col, 0.0)) / max(window_seconds, 1e-6))) if start_col else 0
+        if not (0 <= wi < n_windows):
+            continue
+        if wide_cls:
+            for c in wide_cls:
+                v = float(d.get(c, 0.0) or 0.0)
+                if v > 0:
+                    targets[fi, wi, cls_idx[c]] = 1.0
+        else:
+            lbl = str(d.get("primary_label", d.get("label", "")))
+            if lbl in cls_idx:
+                targets[fi, wi, cls_idx[lbl]] = 1.0
+    return targets
+
+
+def compute_class_mean_embeddings(embeddings, labeled_targets, num_classes):
+    """Mean embedding per class over labeled windows -> (C, D) for prototype seeding.
+    Classes with no labeled support stay all-zero (seed_prototypes leaves them at random
+    init, the intended behaviour for the 28 zero-train classes)."""
+    import torch
+
+    n_files, n_windows, _ = embeddings.shape
+    flat_E = embeddings.reshape(n_files * n_windows, -1)
+    flat_y = labeled_targets.reshape(n_files * n_windows, num_classes)
+    if float(flat_y.sum()) <= 0:
+        return None
+    # (C, NW) @ (NW, D) summed, normalized by per-class window count
+    counts = flat_y.sum(dim=0).clamp_min(1.0)               # (C,)
+    summed = flat_y.t().to(flat_E.dtype) @ flat_E           # (C, D)
+    means = summed / counts.unsqueeze(1)
+    means[flat_y.sum(dim=0) <= 0] = 0.0
+    return means
+
+
 def train_ssm_noisy_student(args: argparse.Namespace, classes: list[str], output_dir: Path) -> Path:
     """T2-B SSM head training, optionally inside the T2-A noisy-student loop.
 
@@ -1148,24 +1209,67 @@ def train_ssm_noisy_student(args: argparse.Namespace, classes: list[str], output
             "For a dependency-free CPU check run run_ssm_smoke.py instead."
         )
     device = choose_torch_device()
-    head_config = build_ssm_head_config(args)
-    head_config.num_classes = len(classes)
-    print(summarize_head(head_config, n_windows=12))
-    p, f = param_count(head_config), flops_per_file(head_config, n_windows=12)
-    print(f"ssm_head params_total={p['total']} MFLOPs_per_file={f['total'] / 1e6:.3f}")
 
     embeddings, filenames = load_perch_embeddings(args.perch_embeddings)
-    embeddings = embeddings.to(device)
-    n_files, n_windows, _ = embeddings.shape
+    n_files, n_windows, embed_dim = embeddings.shape
+
+    head_config = build_ssm_head_config(args)
+    head_config.num_classes = len(classes)
+    # The cached Perch embeddings define D; adapt the head so the launch never silently
+    # trains a (D=1280) head against (D=1536) Perch-v2 embeddings or vice versa.
+    if int(head_config.embed_dim) != int(embed_dim):
+        print(
+            f"ssm_head: adapting embed_dim {head_config.embed_dim} -> {embed_dim} "
+            f"(from cached Perch embeddings {args.perch_embeddings})"
+        )
+        head_config.embed_dim = int(embed_dim)
+    print(summarize_head(head_config, n_windows=n_windows))
+    p, f = param_count(head_config), flops_per_file(head_config, n_windows=n_windows)
+    print(f"ssm_head params_total={p['total']} MFLOPs_per_file={f['total'] / 1e6:.3f}")
+
+    # GPU-efficiency config. The SSM head is tiny and frozen-embedding-fed, so the
+    # bottleneck is moving the (F,T,D) tensor and running teacher+student forwards.
+    # Keep the full embedding tensor pinned on the host and stream minibatches to the
+    # GPU (non_blocking) so we never hold 2x the tensor (teacher + student) on-device,
+    # and run the forward/backward under autocast (bf16 if the GPU supports it).
+    use_cuda = device.type == "cuda"
+    amp_enabled = bool(getattr(args, "amp", False)) and use_cuda
+    amp_dtype = torch.float32
+    if amp_enabled:
+        amp_dtype = (
+            torch.bfloat16
+            if torch.cuda.is_bf16_supported()
+            else torch.float16
+        )
+    if use_cuda:
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print(
+            f"Using CUDA device: {torch.cuda.get_device_name(0)}; "
+            f"amp={amp_enabled} amp_dtype={amp_dtype} n_files={n_files} "
+            f"n_windows={n_windows} embed_dim={embed_dim}"
+        )
+    else:
+        print(f"Using CPU; amp=False n_files={n_files} embed_dim={embed_dim}")
+    ssm_batch = max(int(getattr(args, "ssm_batch_size", 256) or 256), 1)
+    if use_cuda:
+        embeddings = embeddings.pin_memory()
 
     # labeled per-window targets from the labeled-soundscape CSV (aligned by filename);
     # pseudo soft targets from B1's parquet. Rows without labels stay all-zero (treated
-    # as unlabeled by the soft-target mixer).
-    labeled_targets = torch.zeros(n_files, n_windows, len(classes), device=device)
+    # as unlabeled by the soft-target mixer). Targets live on the HOST and are streamed
+    # to the GPU per minibatch (matching the pinned embedding tensor).
+    labeled_targets = load_soundscape_label_targets(
+        args.soundscape_labels_csv, filenames, classes, n_windows,
+        window_seconds=float(args.window_seconds),
+    )
+    n_labeled_windows = int((labeled_targets.sum(dim=-1) > 0).sum().item())
+    print(f"ssm labeled windows with >=1 positive: {n_labeled_windows}/{n_files * n_windows}")
     pseudo_meta, pseudo_soft = load_pseudo_parquet(args.pseudo_parquet, classes)
     if pseudo_meta is not None and filenames is not None:
         idx_by_name = {name: i for i, name in enumerate(filenames)}
-        soft_seq = torch.zeros(n_files, n_windows, len(classes), device=device)
+        soft_seq = torch.zeros(n_files, n_windows, len(classes))
         for (filename, start_sec, _conf), row in zip(
             pseudo_meta.itertuples(index=False, name=None), pseudo_soft
         ):
@@ -1174,51 +1278,94 @@ def train_ssm_noisy_student(args: argparse.Namespace, classes: list[str], output
                 continue
             wi = int(round(float(start_sec) / max(float(args.window_seconds), 1e-6)))
             if 0 <= wi < n_windows:
-                soft_seq[fi, wi] = torch.from_numpy(row).to(device)
+                soft_seq[fi, wi] = torch.from_numpy(row)
         pseudo_targets = soft_seq
     else:
         pseudo_targets = torch.zeros_like(labeled_targets)
 
+    # Seed class prototypes from mean labeled embeddings so the cosine head starts near
+    # the data manifold (zero-train classes keep random init -> lifted by sonotype mirror).
+    class_mean = compute_class_mean_embeddings(embeddings, labeled_targets, len(classes))
+
     # Yao-probe selection: reuse the existing probe CSV machinery for the LB-correlated
     # score. The probe targets are per-window soft scores over the probe files.
-    probe_E = embeddings
     probe_target = pseudo_targets.mean(dim=1).detach().cpu().numpy()
 
     ns_cfg = build_noisy_student_config(args)
     rounds = max(int(args.noisy_student_rounds), 1)
     ns_cfg.n_rounds = rounds
 
+    def _iter_batches(shuffle):
+        order = torch.randperm(n_files) if shuffle else torch.arange(n_files)
+        for s in range(0, n_files, ssm_batch):
+            yield order[s : s + ssm_batch]
+
     def init_student(_round_idx):
-        return build_ssm_head(head_config).to(device)
+        head = build_ssm_head(head_config).to(device)
+        if class_mean is not None:
+            head.seed_prototypes_from_embeddings(class_mean.to(device))
+        return head
 
     def train_one_round(student, teacher, noise: NoiseSchedule, _round_idx, use_tss):
         opt = torch.optim.AdamW(student.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        student.train()
+        scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled and amp_dtype == torch.float16)
+        # Cache the (frozen) teacher soft targets ONCE per round instead of recomputing a
+        # full-set teacher forward every epoch (the teacher does not change within a round).
+        soft_cache = None
         if teacher is not None:
             teacher.eval()
+            soft_chunks = []
+            with torch.no_grad():
+                for idx in _iter_batches(shuffle=False):
+                    eb = embeddings[idx].to(device, non_blocking=True)
+                    with torch.autocast("cuda", dtype=amp_dtype, enabled=amp_enabled):
+                        tlog = teacher(eb)
+                    probs = ensemble_teacher_probs([tlog.float()])
+                    soft = make_soft_targets(
+                        probs, pseudo_targets[idx].to(device), ns_cfg, use_tss=use_tss
+                    )
+                    soft_chunks.append(soft.detach().cpu())
+            soft_cache = torch.cat(soft_chunks, dim=0)
+        student.train()
         for _epoch in range(max(int(args.epochs), 1)):
-            opt.zero_grad(set_to_none=True)
-            xb = apply_embedding_noise(embeddings, noise)
-            xb, yb = mixup_embeddings(xb, labeled_targets, noise)
-            loss = torch.nn.functional.binary_cross_entropy_with_logits(student(xb), yb)
-            if teacher is not None:
-                with torch.no_grad():
-                    teacher_probs = ensemble_teacher_probs([teacher(embeddings)])
-                    soft = make_soft_targets(teacher_probs, pseudo_targets, ns_cfg, use_tss=use_tss)
-                xu = apply_embedding_noise(embeddings, noise)
-                loss = loss + torch.nn.functional.binary_cross_entropy_with_logits(student(xu), soft)
-            if not torch.isfinite(loss):
-                raise FloatingPointError("non-finite SSM noisy-student loss")
-            loss.backward()
-            if args.grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(student.parameters(), args.grad_clip)
-            opt.step()
+            for idx in _iter_batches(shuffle=True):
+                opt.zero_grad(set_to_none=True)
+                eb = embeddings[idx].to(device, non_blocking=True)
+                yb_host = labeled_targets[idx].to(device, non_blocking=True)
+                with torch.autocast("cuda", dtype=amp_dtype, enabled=amp_enabled):
+                    xb = apply_embedding_noise(eb, noise)
+                    xb, yb = mixup_embeddings(xb, yb_host, noise)
+                    loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                        student(xb), yb
+                    )
+                    if soft_cache is not None:
+                        soft = soft_cache[idx].to(device, non_blocking=True)
+                        xu = apply_embedding_noise(eb, noise)
+                        loss = loss + torch.nn.functional.binary_cross_entropy_with_logits(
+                            student(xu), soft
+                        )
+                if not torch.isfinite(loss):
+                    raise FloatingPointError("non-finite SSM noisy-student loss")
+                scaler.scale(loss).backward()
+                if args.grad_clip > 0:
+                    scaler.unscale_(opt)
+                    torch.nn.utils.clip_grad_norm_(student.parameters(), args.grad_clip)
+                scaler.step(opt)
+                scaler.update()
+            print(f"  ssm round epoch {_epoch + 1}/{max(int(args.epochs), 1)} loss={float(loss):.4f}", flush=True)
         return student
 
     def evaluate(student):
         student.eval()
+        preds = []
         with torch.no_grad():
-            pred = student(probe_E).sigmoid().mean(dim=1).detach().cpu().numpy()
+            for idx in _iter_batches(shuffle=False):
+                eb = embeddings[idx].to(device, non_blocking=True)
+                with torch.autocast("cuda", dtype=amp_dtype, enabled=amp_enabled):
+                    out = student(eb)
+                preds.append(out.float().sigmoid().mean(dim=1).detach().cpu().numpy())
+        import numpy as np
+        pred = np.concatenate(preds, axis=0)
         return compute_yao_probe_metrics(pred, probe_target, classes, topk=args.yao_probe_topk)
 
     best = run_noisy_student(
