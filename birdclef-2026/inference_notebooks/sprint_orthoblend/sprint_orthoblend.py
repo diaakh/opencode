@@ -179,9 +179,14 @@ class OnnxRunner:
     established sub_v8 session (intra=4, inter=1, ORT_ENABLE_ALL).
     """
 
-    def __init__(self, onnx_path, n_outputs_keep=2):
+    def __init__(self, onnx_path, n_outputs_keep=2, out_names=None):
+        # out_names: if given, fetch ONLY these named outputs (by exact name), skipping
+        # heavy unused heads (e.g. Perch spatial_embedding/spectrogram). Falls back to
+        # the first n_outputs_keep outputs when None.
         self.onnx_path = str(onnx_path)
         self.n_outputs_keep = n_outputs_keep
+        self.out_names = out_names
+        self._out_idx = None       # resolved positional indices of out_names
         self.backend = "ort"
         self._compiled = None
         self._sess = None
@@ -199,6 +204,31 @@ class OnnxRunner:
                 )
                 self._out_ports = list(self._compiled.outputs)
                 self._in_port = self._compiled.inputs[0]
+                if self.out_names is not None:
+                    name2idx = {}
+                    for i, p in enumerate(self._out_ports):
+                        try:
+                            for nm in p.get_names():
+                                name2idx[nm] = i
+                        except Exception:
+                            pass
+                        try:
+                            name2idx[p.get_any_name()] = i
+                        except Exception:
+                            pass
+                    self._out_idx = [name2idx[n] for n in self.out_names if n in name2idx]
+                    if not self._out_idx:
+                        # name resolution failed (names not preserved through OV); fall back to
+                        # matching by output dim against the ORT graph's named outputs.
+                        want_dims = {"embedding": 1536, "label": 14795}  # Perch native dims
+                        sel = []
+                        for n in self.out_names:
+                            d = want_dims.get(n)
+                            for i, p in enumerate(self._out_ports):
+                                shp = list(p.get_shape())
+                                if d is not None and shp and shp[-1] == d:
+                                    sel.append(i); break
+                        self._out_idx = sel or None
                 self.backend = "openvino-fp16"
             except Exception as e:
                 print(f"[backend] OV compile failed for {Path(self.onnx_path).name} ({e}); ORT fallback.")
@@ -217,26 +247,36 @@ class OnnxRunner:
             so.enable_mem_pattern = False
             self._sess = ort.InferenceSession(self.onnx_path, so, providers=["CPUExecutionProvider"])
             self._in_name = self._sess.get_inputs()[0].name
+            sess_out_names = [o.name for o in self._sess.get_outputs()]
+            if self.out_names is not None:
+                self._ort_out_names = [n for n in self.out_names if n in sess_out_names]
+            else:
+                self._ort_out_names = None  # fetch all, slice
 
     def run(self, x):
-        """x: (N, ...) -> list of up to n_outputs_keep np arrays (clip_logits, framewise)."""
+        """x: (N, ...) -> list of np arrays. If out_names was given, returns exactly
+        those named outputs (in order); else the first n_outputs_keep outputs."""
         if self.backend == "openvino-fp16":
             # AsyncInferQueue across the static batch for core overlap.
+            keep = (self._out_idx if self._out_idx is not None
+                    else list(range(min(self.n_outputs_keep, len(self._out_ports)))))
             results = [None] * x.shape[0]
             q = ov.AsyncInferQueue(self._compiled, 2)  # 2 physical cores
 
             def _cb(req, idx):
-                results[idx] = [req.get_output_tensor(i).data.copy()
-                                for i in range(min(self.n_outputs_keep, len(self._out_ports)))]
+                results[idx] = [req.get_output_tensor(o).data.copy() for o in keep]
             q.set_callback(_cb)
             for i in range(x.shape[0]):
                 q.start_async({self._in_port: x[i:i + 1]}, i)
             q.wait_all()
             outs = []
-            for o in range(min(self.n_outputs_keep, len(self._out_ports))):
-                outs.append(np.concatenate([results[i][o] for i in range(x.shape[0])], axis=0))
+            for j in range(len(keep)):
+                outs.append(np.concatenate([results[i][j] for i in range(x.shape[0])], axis=0))
             return outs
         else:
+            if self._ort_out_names is not None:
+                outs = self._sess.run(self._ort_out_names, {self._in_name: x})
+                return [np.asarray(o) for o in outs]
             outs = self._sess.run(None, {self._in_name: x})
             return [np.asarray(o) for o in outs[:self.n_outputs_keep]]
 
@@ -322,29 +362,122 @@ def sed_predict(runners, mel):
 #   ProtoSSMv2:  d_model=320 d_state=32 n_ssm_layers=4 n_sites=20 meta_dim=24
 #                use_cross_attn=True cross_attn_heads=8  + family_head(5)
 #   ResidualSSM: d_model=128 d_state=16 n_sites=20 meta_dim=8 (input 1536+234=1770)
-# Two-pass flow (faithful to train): proto_logits = ProtoSSM(emb); refined =
-# proto_logits + ResidualSSM(emb, proto_logits). We feed perch_logits=None so the
-# proto head uses its prototype-similarity branch (the no-DFT Perch ONNX emits
-# embeddings only — no classifier head — so a real perch_logit fusion is unavailable;
-# the gated-fusion alpha was trained but the prototype branch alone is non-degenerate
-# and is the faithful path given the embeddings-only ONNX, see PERCH-LOGITS note).
-PERCH = OnnxRunner(PERCH_ONNX, n_outputs_keep=2) if PERCH_ONNX else None
+# Two-pass flow (faithful to train): proto_logits = ProtoSSM(emb, perch_logits); refined =
+# proto_logits + ResidualSSM(emb, proto_logits).
+#
+# PERCH-LOGITS (FIXED): the no-DFT Perch ONNX DOES expose a `label` output (14795-dim
+# native Perch logits) alongside `embedding` (1536). The ProtoSSMv2 was trained with the
+# trained Perch logits fused via the gated head
+#   species_logits = sigmoid(fusion_alpha)*sim + (1-sigmoid(fusion_alpha))*perch_logits
+# Earlier this notebook ran perch_logits=None (prototype-similarity branch only), which
+# crippled the dominant proto member and regressed the LB to 0.809. We now build the
+# REAL 234-class perch_logits per window from the ONNX native `label` output, mapped
+# native->our-234 with the train kernel's logic (MAPPED_POS / MAPPED_BC_INDICES + genus
+# proxy reduce="max"), and feed them into the proto forward so the trained gated fusion
+# activates (faithful reproduction of the ~0.950 anchor).
+#
+# Perch ONNX output ports (verified): [0]=embedding(1536) [1]=spatial_embedding
+# [2]=spectrogram [3]=label(14795-native-logits). Keep all 4; select by shape.
+PERCH = (OnnxRunner(PERCH_ONNX, n_outputs_keep=4, out_names=["embedding", "label"])
+         if PERCH_ONNX else None)
+
+# ---- native(14795) -> our-234 Perch-logit mapping (ported from hk_train.py Cell 3) ----
+# Build once from taxonomy.csv (competition) + the Perch SavedModel assets/labels.csv.
+# labels.csv: single column of scientific names; bc_index == row index. We merge our 234
+# taxonomy scientific_names onto it; unmapped non-sonotype Amphibia/Insecta/Aves get a
+# genus-proxy (max over all native indices whose scientific name shares the genus).
+PERCH_LABELS_CSV = _first("assets/labels.csv", "labels.csv")
+_NATIVE_DIM = 14795
+MAPPED_POS = MAPPED_BC_INDICES = None
+PROXY_POS = None            # list[int]   our-234 positions that use a genus proxy
+PROXY_BC = None             # list[np.ndarray] native indices per proxy position
+PERCH_MAP_OK = False
+
+
+def _build_perch_map():
+    """Replicate hk_train.py Cell 3 mapping. Returns (ok)."""
+    global MAPPED_POS, MAPPED_BC_INDICES, PROXY_POS, PROXY_BC, PERCH_MAP_OK, _NATIVE_DIM
+    if PERCH_LABELS_CSV is None or not TAXONOMY_PATH.exists():
+        print(f"[perch-map] MISSING asset: labels.csv={PERCH_LABELS_CSV} "
+              f"taxonomy_exists={TAXONOMY_PATH.exists()} — perch_logits will be ZERO (degrades)")
+        return False
+    # class order is the 234 sample_submission columns (read here to avoid cell-order coupling)
+    class_cols = [c for c in pd.read_csv(SAMPLE_SUB_PATH).columns if c != "row_id"]
+    tax = pd.read_csv(TAXONOMY_PATH)
+    bc = (pd.read_csv(PERCH_LABELS_CSV).reset_index()
+          .rename(columns={"index": "bc_index", "inat2024_fsd50k": "scientific_name"}))
+    # labels.csv may carry a different first-column name across versions; force it.
+    if "scientific_name" not in bc.columns:
+        nm = [c for c in bc.columns if c not in ("bc_index",)][0]
+        bc = bc.rename(columns={nm: "scientific_name"})
+    _NATIVE_DIM = len(bc)
+    NO_LABEL_INDEX = len(bc)
+    tax = tax.copy()
+    tax["scientific_name_lookup"] = tax["scientific_name"]
+    bc_lookup = bc.rename(columns={"scientific_name": "scientific_name_lookup"})
+    mapping = tax.merge(bc_lookup[["scientific_name_lookup", "bc_index"]],
+                        on="scientific_name_lookup", how="left")
+    mapping["bc_index"] = mapping["bc_index"].fillna(NO_LABEL_INDEX).astype(int)
+    label_to_bc = mapping.set_index("primary_label")["bc_index"]
+    bc_idx = np.array([int(label_to_bc.get(c, NO_LABEL_INDEX)) for c in class_cols], dtype=np.int32)
+    mask = bc_idx != NO_LABEL_INDEX
+    MAPPED_POS = np.where(mask)[0].astype(np.int32)
+    MAPPED_BC_INDICES = bc_idx[mask].astype(np.int32)
+    # genus proxies for unmapped non-sonotype Amphibia/Insecta/Aves
+    cls_name = tax.set_index("primary_label")["class_name"].to_dict()
+    label_to_idx = {c: i for i, c in enumerate(class_cols)}
+    unmapped = mapping[mapping["bc_index"] == NO_LABEL_INDEX].copy()
+    unmapped = unmapped[~unmapped["primary_label"].astype(str).str.contains("son", na=False)]
+    PROXY_TAXA = {"Amphibia", "Insecta", "Aves"}
+    proxy_pos, proxy_bc = [], []
+    bc_sci = bc["scientific_name"].astype(str)
+    for _, row in unmapped.iterrows():
+        target = row["primary_label"]
+        if target not in label_to_idx or cls_name.get(target) not in PROXY_TAXA:
+            continue
+        genus = str(row["scientific_name"]).split()[0]
+        hits = bc[bc_sci.str.match(rf"^{re.escape(genus)}\s", na=False)]
+        if len(hits) > 0:
+            proxy_pos.append(label_to_idx[target])
+            proxy_bc.append(hits["bc_index"].to_numpy(dtype=np.int32))
+    PROXY_POS, PROXY_BC = proxy_pos, proxy_bc
+    PERCH_MAP_OK = True
+    print(f"[perch-map] native_dim={_NATIVE_DIM}  mapped={len(MAPPED_POS)}/{NUM_CLASSES}  "
+          f"genus_proxies={len(PROXY_POS)}  (covered={len(MAPPED_POS)+len(PROXY_POS)}, "
+          f"zero={NUM_CLASSES-len(MAPPED_POS)-len(PROXY_POS)})")
+    return True
+
+
+_build_perch_map()
+
+
+def _native_to_234(native_logits):
+    """(N,14795) Perch native logits -> (N,234) mapped logits (faithful to train, proxy max)."""
+    n = native_logits.shape[0]
+    out = np.zeros((n, NUM_CLASSES), dtype=np.float32)
+    if not PERCH_MAP_OK:
+        return out
+    out[:, MAPPED_POS] = native_logits[:, MAPPED_BC_INDICES]
+    for pos, bc_arr in zip(PROXY_POS, PROXY_BC):
+        out[:, pos] = native_logits[:, bc_arr].max(axis=1)
+    return out
 
 
 def perch_predict(x):
-    """x:(N,160000) -> (emb (N,1536), perch_logits (N,234))."""
+    """x:(N,160000) -> (emb (N,1536), perch_logits (N,234) mapped from native `label`)."""
     outs = PERCH.run(x)
-    emb, logit = None, None
+    emb, native = None, None
     for o in outs:
         a = np.asarray(o)
         if a.ndim == 2 and a.shape[1] in (1536, 1280):
             emb = a.astype(np.float32)
-        elif a.ndim == 2 and a.shape[1] == NUM_CLASSES:
-            logit = a.astype(np.float32)
+        elif a.ndim == 2 and a.shape[1] == _NATIVE_DIM:
+            native = a.astype(np.float32)
+        elif a.ndim == 2 and a.shape[1] == NUM_CLASSES:  # already-234 (defensive)
+            native = None
     if emb is None:
         emb = np.asarray(outs[0], np.float32).reshape(x.shape[0], -1)
-    if logit is None:
-        logit = np.zeros((x.shape[0], NUM_CLASSES), np.float32)
+    logit = _native_to_234(native) if native is not None else np.zeros((x.shape[0], NUM_CLASSES), np.float32)
     return emb, logit
 
 
@@ -522,24 +655,31 @@ if _TORCH is not None:
             return self.output_head(h)
 
 
-def _emb_to_seq(emb):
-    """Flat (N,1536) -> (N//12, 12, 1536) torch float tensor. N must be a multiple of 12."""
-    n = emb.shape[0]
+def _flat_to_seq(arr):
+    """Flat (N,D) -> (N//12, 12, D) torch float tensor. N must be a multiple of 12."""
+    n = arr.shape[0]
     nf = n // N_WINDOWS
-    t = _TORCH.from_numpy(np.ascontiguousarray(emb)).float()
-    return t.view(nf, N_WINDOWS, emb.shape[1])
+    t = _TORCH.from_numpy(np.ascontiguousarray(arr)).float()
+    return t.view(nf, N_WINDOWS, arr.shape[1])
+
+
+# kept name for any external refs
+def _emb_to_seq(emb):
+    return _flat_to_seq(emb)
 
 
 class _SSMHeads:
     """Loads ProtoSSM + ResidualSSM with strict=True and runs the faithful two-pass.
 
     Exposes:
-      .proto(emb_flat)  -> (N,234) proto-branch probs  (sigmoid of proto species_logits)
-      .resssm(emb_flat) -> (N,234) refined probs        (sigmoid(proto_logits + correction))
-    Both accept the flat (N,1536) Perch embeddings the inference loop already produces,
-    reshape to (files,12,1536), and flatten the (files,12,234) output back to (N,234).
-    perch_logits / site_ids / hours are passed as None (no-DFT ONNX has no classifier
-    head; the prototype-similarity branch is non-degenerate on its own)."""
+      .proto(emb_flat, perch_logits)  -> (N,234) proto-branch probs
+      .resssm(emb_flat, perch_logits) -> (N,234) refined probs
+    Both accept the flat (N,1536) Perch embeddings AND the flat (N,234) mapped Perch
+    logits the inference loop produces, reshape to (files,12,*), run the trained gated
+    fusion (species_logits = a*sim + (1-a)*perch_logits), and flatten the
+    (files,12,234) output back to (N,234). This is the FAITHFUL training path — the
+    no-DFT Perch ONNX `label` head provides the real native logits, mapped to 234.
+    site_ids / hours are left None (matches the train submit path)."""
 
     def __init__(self, proto_pt, res_pt):
         self.ok_proto = False
@@ -569,49 +709,80 @@ class _SSMHeads:
             self.ok_res = True
             print(f"[ssm] ResidualSSM loaded strict from {Path(res_pt).name}")
 
-    def _proto_logits(self, emb_flat):
-        seq = _emb_to_seq(emb_flat)
+    @staticmethod
+    def _perch_seq(perch_logits, ref_seq):
+        """(N,234) -> (files,12,234) torch tensor, or None. Matched to ref_seq dtype."""
+        if perch_logits is None:
+            return None
+        t = _flat_to_seq(perch_logits)
+        return t.to(ref_seq.dtype)
+
+    @staticmethod
+    def _meta_tensors(file_hours, nf):
+        """Build (site_ids, hours) long tensors of length nf (per-file). site=0 default
+        (matches train get_file_metadata get(None,0)); hours clamped to [0,23]. Returns
+        (None, None) if file_hours is None (skips meta conditioning)."""
+        if file_hours is None:
+            return None, None
+        h = np.asarray(file_hours, dtype=np.int64).reshape(-1)[:nf]
+        if h.shape[0] < nf:                       # defensive pad
+            h = np.pad(h, (0, nf - h.shape[0]))
+        h = np.clip(h, 0, 23)
+        site = _TORCH.zeros(nf, dtype=_TORCH.long)
+        return site, _TORCH.from_numpy(h).long()
+
+    def _proto_logits(self, emb_flat, perch_logits=None, file_hours=None):
+        seq = _flat_to_seq(emb_flat)
+        pl = self._perch_seq(perch_logits, seq)
+        site_ids, hours = self._meta_tensors(file_hours, seq.shape[0])
         with _TORCH.no_grad():
-            species_logits, _, _ = self.proto_model(seq, perch_logits=None)
+            species_logits, _, _ = self.proto_model(seq, perch_logits=pl,
+                                                    site_ids=site_ids, hours=hours)
         return species_logits  # (files,12,234)
 
-    def proto(self, emb_flat):
-        logits = self._proto_logits(emb_flat)
+    def proto(self, emb_flat, perch_logits=None, file_hours=None):
+        logits = self._proto_logits(emb_flat, perch_logits, file_hours)
         return _sigmoid(logits.reshape(-1, NUM_CLASSES).cpu().numpy())
 
-    def resssm(self, emb_flat):
-        # faithful two-pass: refined = proto_logits + ResidualSSM(emb, proto_logits)
-        logits = self._proto_logits(emb_flat)
-        seq = _emb_to_seq(emb_flat)
+    def resssm(self, emb_flat, perch_logits=None, file_hours=None):
+        # faithful two-pass: refined = proto_logits + ResidualSSM(emb, proto_logits, meta)
+        seq = _flat_to_seq(emb_flat)
+        pl = self._perch_seq(perch_logits, seq)
+        site_ids, hours = self._meta_tensors(file_hours, seq.shape[0])
         with _TORCH.no_grad():
-            correction = self.res_model(seq, logits)
-            refined = logits + correction
+            logits, _, _ = self.proto_model(seq, perch_logits=pl, site_ids=site_ids, hours=hours)
+            refined = logits + self.res_model(seq, logits, site_ids=site_ids, hours=hours)
         return _sigmoid(refined.reshape(-1, NUM_CLASSES).cpu().numpy())
 
-    def proto_and_resssm(self, emb_flat, want_proto, want_res):
-        """Compute the proto forward ONCE and derive both members from it (item 4:
-        avoids the duplicate proto forward that .proto()+.resssm() incurred).
+    def proto_and_resssm(self, emb_flat, want_proto, want_res, perch_logits=None, file_hours=None):
+        """Compute the proto forward ONCE (with the trained gated fusion of the real
+        Perch logits + site/hour meta conditioning) and derive both members from it.
         Returns (proto_probs_or_None, resssm_probs_or_None)."""
         proto_p = res_p = None
         if not (want_proto or want_res):
             return proto_p, res_p
-        seq = _emb_to_seq(emb_flat)
+        seq = _flat_to_seq(emb_flat)
+        pl = self._perch_seq(perch_logits, seq)
+        site_ids, hours = self._meta_tensors(file_hours, seq.shape[0])
         with _TORCH.no_grad():
-            logits, _, _ = self.proto_model(seq, perch_logits=None)   # single proto forward
+            logits, _, _ = self.proto_model(seq, perch_logits=pl,
+                                            site_ids=site_ids, hours=hours)  # single fused forward
             if want_proto:
                 proto_p = _sigmoid(logits.reshape(-1, NUM_CLASSES).cpu().numpy())
             if want_res:
-                refined = logits + self.res_model(seq, logits)
+                refined = logits + self.res_model(seq, logits, site_ids=site_ids, hours=hours)
                 res_p = _sigmoid(refined.reshape(-1, NUM_CLASSES).cpu().numpy())
-        del seq
+        del seq, pl
         return proto_p, res_p
 
 
 _SSM = _SSMHeads(PROTO_SSM_PT, RESSSM_PT)
-PROTO_HEAD = (lambda emb: _SSM.proto(emb)) if _SSM.ok_proto else None
-RESSSM_HEAD = (lambda emb: _SSM.resssm(emb)) if (_SSM.ok_proto and _SSM.ok_res) else None
+PROTO_HEAD = (lambda emb, pl=None, fh=None: _SSM.proto(emb, pl, fh)) if _SSM.ok_proto else None
+RESSSM_HEAD = ((lambda emb, pl=None, fh=None: _SSM.resssm(emb, pl, fh))
+               if (_SSM.ok_proto and _SSM.ok_res) else None)
 # Combined single-proto-forward path used in the main loop (item 4).
-SSM_BOTH = (lambda emb, wp, wr: _SSM.proto_and_resssm(emb, wp, wr)) if _SSM.ok_proto else None
+SSM_BOTH = ((lambda emb, wp, wr, pl=None, fh=None: _SSM.proto_and_resssm(emb, wp, wr, pl, fh))
+            if _SSM.ok_proto else None)
 
 
 # ============================================================================
@@ -783,14 +954,16 @@ def run_full_inference(files, label="test"):
                 nxt_f = [pool.submit(_load, p) for p in nb]
             bn = len(batch)
             x = np.empty((bn * N_WINDOWS, WINDOW_SAMPLES), dtype=np.float32)
-            for bi, (_, yw) in enumerate(batch):
+            file_hours = np.zeros(bn, dtype=np.int64)   # per-file hour for SSM meta cond.
+            for bi, (fpath, yw) in enumerate(batch):
                 x[bi * N_WINDOWS:(bi + 1) * N_WINDOWS] = yw
+                hm = ROW_RE.search(fpath.stem)
+                file_hours[bi] = int(hm.group(2)[:2]) if hm else 0
 
             # --- shared substrates (compute ONCE, fan out) ---
             _ts = time.time()
             emb, perch_logit = perch_predict(x) if PERCH is not None else (None, None)
             emb = emb.astype(np.float32, copy=False) if emb is not None else None
-            del perch_logit
             _T["perch"] += time.time() - _ts
             _ts = time.time()
             mel = chunks_to_sed_mel(x) if SED_RUNNERS_MAIN else None
@@ -803,7 +976,11 @@ def run_full_inference(files, label="test"):
             # proto + residual share ONE proto forward (item 4: no duplicate forward)
             _ts = time.time()
             if (want_proto or want_res) and emb is not None and SSM_BOTH is not None:
-                p_proto, p_res = SSM_BOTH(emb, want_proto, want_res)
+                # Faithful to the train submit path (hk_train.py ~L2676): pass mapped
+                # Perch logits + per-file site/hour. Hidden-test filenames are anonymized
+                # so site defaults to 0 (matches get_file_metadata's get(None,0)) and hour
+                # parses to 0 when absent — the trained meta-conditioning bias still applies.
+                p_proto, p_res = SSM_BOTH(emb, want_proto, want_res, perch_logit, file_hours)
                 if want_proto:
                     member_probs["proto_ssm"] = p_proto
                 if want_res:
@@ -829,7 +1006,7 @@ def run_full_inference(files, label="test"):
             _T["smooth"] += time.time() - _ts
             # --- aggressive per-batch cleanup (peak RAM driver) ---
             _ts = time.time()
-            del x, emb, mel, member_probs, batch
+            del x, emb, mel, member_probs, batch, perch_logit
             gc.collect()
             _T["gc"] += time.time() - _ts
 
@@ -901,25 +1078,41 @@ def tiny_model_selftest():
               f"max={a.max():.4f} std={a.std():.4f} {'OK' if ok else 'DEGENERATE!!'}")
         return ok
     good = True
+    perch_logit = None
     if PERCH is not None:
         emb, perch_logit = perch_predict(xw)
-        _stat("perch_logit", perch_logit)
+        good &= _stat("perch_logit", perch_logit)   # mapped 234-dim native `label` -> our classes
         good &= _stat("perch_emb", emb)
+        nz = int((np.abs(perch_logit).sum(axis=0) > 0).sum())
+        print(f"  [selftest] perch_logit nonzero-cols={nz}/{NUM_CLASSES} "
+              f"(expect ~206 = mapped+proxy; rest legitimately zero)")
     else:
         emb = None
     mel = chunks_to_sed_mel(xw) if SED_RUNNERS_MAIN else None
     if SED_RUNNERS_MAIN:
         good &= _stat("distilled_sed", sed_predict(SED_RUNNERS_MAIN, mel))
     if emb is not None and PROTO_HEAD is not None:
-        try: good &= _stat("proto_ssm", PROTO_HEAD(emb))
+        try:
+            # FUSION VALIDATION: proto output WITHOUT vs WITH the trained Perch-logit
+            # gated fusion. The fix is real iff feeding perch_logits meaningfully shifts
+            # the proto logits (sanity per task item 4a).
+            p_none = PROTO_HEAD(emb, None)
+            p_fuse = PROTO_HEAD(emb, perch_logit)
+            good &= _stat("proto_ssm(none)", p_none)
+            good &= _stat("proto_ssm(fuse)", p_fuse)
+            shift = float(np.abs(p_fuse - p_none).mean())
+            print(f"  [selftest] proto_ssm fusion shift mean|Δ(fuse-none)|={shift:.5f} "
+                  f"std none={p_none.std():.5f} -> fuse={p_fuse.std():.5f} "
+                  f"{'(FUSION ACTIVE ✓)' if shift > 1e-4 else '(NO SHIFT — fusion inert ✗)'}")
+            good &= shift > 1e-4
         except Exception as e:
             good = False; print(f"  [selftest] proto_ssm head FAILED: {e}")
     if emb is not None and RESSSM_HEAD is not None:
-        try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb))
+        try: good &= _stat("sgkfk_resssm", RESSSM_HEAD(emb, perch_logit))
         except Exception as e:
             good = False; print(f"  [selftest] resssm head FAILED: {e}")
     if emb is not None and PROTO_HEAD is not None and RESSSM_HEAD is not None:
-        dd = float(np.abs(PROTO_HEAD(emb) - RESSSM_HEAD(emb)).mean())
+        dd = float(np.abs(PROTO_HEAD(emb, perch_logit) - RESSSM_HEAD(emb, perch_logit)).mean())
         print(f"  [selftest] proto_ssm vs sgkfk_resssm mean|Δ|={dd:.5f} "
               f"{'(distinct OK)' if dd > 1e-5 else '(IDENTICAL — residual head no-op!)'}")
     print(f"  [selftest] RESULT: {'ALL ACTIVE MEMBERS SANE ✓' if good else 'DEGENERATE OUTPUT ✗'}")
