@@ -42,3 +42,17 @@
 - Action: when the pseudo-label precompute finishes, VERIFY the teacher produces non-zero preds for
   the 28 son-IDs; if yes, the noisy-student rounds can learn them. If the public SED also can't score
   them, the 28 are stuck at the public baseline for everyone (no public audio exists).
+
+## Blend result: 0.950 base + round-0 CNN (w=0.12) = 0.944  ⬇ (−0.006, HURTS)
+| submission | public LB |
+|---|---:|
+| V237 EoS9 base (proven) | **0.950** |
+| base + orthogonal EffNetV2-S CNN (w=0.12) | **0.944** ⬇ |
+| our orthoblend v12 (ProtoSSM repro) | 0.880 |
+
+**Lesson:** orthogonality is necessary but NOT sufficient — the member must be GOOD on the TEST
+(soundscape) domain. Our CNN is round-0 supervised on FOCAL train_audio only → weak under
+focal→soundscape shift → its rank ordering is net-negative even at low weight. **Domain adaptation
+(focal→soundscape via noisy-student) is not optional; it's the requirement.** Best submission
+remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weight — fix the member
+(noisy-student adaptation), then re-blend.
