@@ -1,0 +1,34 @@
+{
+  "id": "adkasd/bc26-eos9-plus-orthocnn",
+  "id_no": 121093920,
+  "title": "BC26 EoS9 Plus OrthoCNN",
+  "code_file": "bc26-eos9-plus-orthocnn.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [],
+  "dataset_sources": [
+    "tuckerarrants/bc2026-distilled-sed-public",
+    "adkasd/bc26-g124-cnn-effv2s",
+    "tuckerarrants/birdclef-2026-waveform-cache",
+    "jaejohn/perch-meta",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "rishikeshjani/perch-onnx-for-birdclef-2026",
+    "hideyukizushi/sgkfk-202604041716"
+  ],
+  "kernel_sources": [
+    "ashok205/tf-wheels",
+    "hideyukizushi/bird26-reprod-perch-proto-residualssm-train-s7177"
+  ],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": [
+    "google/bird-vocalization-classifier/TensorFlow2/perch_v2_cpu/1"
+  ],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:e5452ce6268c2e8345cfe5141f31ca7ff47032aca46a7ea532bbb87481281d0c",
+  "machine_shape": "None"
+}
