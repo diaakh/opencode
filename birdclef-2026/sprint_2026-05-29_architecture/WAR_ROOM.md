@@ -224,3 +224,32 @@ The room broke through to ONE plan. Unanimous structure:
 0.950 plateau; 0.96 is reachable but the top (0.964) likely needs more than 5 days. The single most
 time-critical action — **start the CPU pseudo-label precompute now** (B1's `pseudo_label_precompute/`
 already built) so noisy-student fires the instant GPU returns.
+
+---
+
+## 🔎 DISCUSSION DEEP-DIVE (A7) — clues that CHANGE the plan
+Mined the full forum + BC2025 winner writeups (via r.jina.ai; Kaggle is JS-rendered). Several
+clues OVERRIDE the war-room consensus — note the corrections:
+
+1. **Noisy-student recipe — ALIGN TO NIKITA (LB #1, 0.964).** His actual 2025-win recipe (re-run
+   in 2026): **4 self-train iterations** (0.909→0.918→0.927→0.930), **pure power-transform SOFT
+   pseudo-labels, NO hard threshold** (power ~1.5–1.8), **every sample MixUp'd with a random
+   pseudo-labeled sample at blend 0.5**, **CrossEntropy** loss, 7-model SED+GeM stack.
+   ⚠️ CONTRADICTS our plan (TH=0.3 + 0.7·pseudo+0.3·hard). → **Rewrite `noisy_student.py` to:
+   no threshold, power-transform soft labels, mandatory pseudo-MixUp@0.5, CE.**
+2. **CV is anti-correlated with LB for EVERYONE** (Tawara: CV 0.957→LB 0.856; the +0.03 LB jump came
+   from a *lower*-CV head; Nikita validated only on public LB). ⚠️ CONTRADICTS Riya's "select by CV
+   not LB." → **Use LOSO only as a leak DETECTOR; rank final subs by public LB + worst-fold.**
+3. **The 28 are reachable; soundscape activity is INVERTED** (Amphibia 4,174 / Insecta 1,136 / Aves
+   824 mentions). Nikita's fix: a **dedicated EffNetB0 on train+Xeno-Canto** (17,844 samples,
+   min-1/spp), predictions inserted into a zero matrix and blended. → confirms the B0 specialist.
+4. **NOTELA (source-free domain adaptation) — NEW lever**, in the Perch repo (`chirp/projects/sfda`):
+   "NOisy student TEacher + Laplacian Adjustment," benchmarked on exactly focal→soundscape shift;
+   neighbor-consistency is a principled route to the 28. → evaluate for round-N.
+5. **Inference budget is NOT binding** (a single model ≈90s for all 600 files → 50+ passes fit in
+   90 min). **torch-jit-trace > OpenVINO** (OV is ~2× faster but slightly WORSE scores). Also:
+   evidence caps a *trainable-Perch gated-fusion head* at ~0.889 — so don't over-invest there.
+
+**Net plan corrections:** (a) GPU noisy-student → Nikita's exact recipe; (b) trust public-LB +
+worst-fold for final selection, LOSO only as leak gate; (c) add NOTELA as a candidate; (d) keep the
+B0 28-class specialist; (e) inference headroom is larger than feared (jit-trace, not OpenVINO).
