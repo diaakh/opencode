@@ -1,0 +1,20 @@
+{
+  "id": "adkasd/bc26-noisy-student-gpu",
+  "title": "BC26 Noisy Student GPU",
+  "code_file": "bc26_noisy_student_gpu.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "adkasd/birdclef-g124-code",
+    "tuckerarrants/perch-v2-no-dft-onnx",
+    "tuckerarrants/bc2026-distilled-sed-public"
+  ],
+  "competition_sources": [
+    "birdclef-2026"
+  ],
+  "model_sources": []
+}
