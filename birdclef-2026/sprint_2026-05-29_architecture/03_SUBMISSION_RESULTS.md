@@ -56,3 +56,19 @@ focal→soundscape shift → its rank ordering is net-negative even at low weigh
 (focal→soundscape via noisy-student) is not optional; it's the requirement.** Best submission
 remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weight — fix the member
 (noisy-student adaptation), then re-blend.
+
+## DEFINITIVE: the 28 son-IDs are unreachable (2026-05-30)
+- GPU pipeline confirmed: the public distilled-SED does NOT genuinely score the 28 anonymized
+  Insecta/Amphibia son-IDs (raw sigmoid probs are dead/near-constant; the earlier "coverage" was a
+  percentile-RANK artifact fabricating uniform 0–1 from a dead column). No public audio exists for
+  them anywhere. ⇒ **the 28 sit at ~0.5 AUC for EVERYONE (incl. Nikita)**.
+- **Implication: 0.950→0.96 must come ENTIRELY from the 206 mapped classes** — better soundscape-
+  domain modeling (noisy-student adaptation + ensemble diversity), NOT the 28.
+- Perch ONNX has no native 234 head; its 14795-`label` output needs the labels.csv→234 mapping
+  (v12 used it; the pseudo-label teacher is distilled-SED-only, which is already 234-class).
+
+## Noisy-student student (soundscape-adapted) — TRAINING
+- tf_efficientnet_b0, soundscape pseudo-labels (SED teacher), Nikita recipe (pure power-transform,
+  fixed-0.5 mixup, per-round powers), 2 rounds, 4000 soundscapes + focal anchors. Kernel
+  `bc26-noisy-student-gpu`; artifact `bc26-ns-student-b0`. This trains ON the test (soundscape)
+  domain — the fix the round-0 focal CNN lacked. Blend onto 0.950 base + MEASURE (don't assume).
