@@ -1,6 +1,6 @@
 {
-  "id": "adkasd/bc26-ns-student-nfnet-train",
-  "title": "BC26 NS Student NFNet Train",
+  "id": "adkasd/bc26-nsnfnet-gpu2",
+  "title": "BC26 NS nfnet gpu2",
   "code_file": "bc26_noisy_student_nfnet.py",
   "language": "python",
   "kernel_type": "script",
