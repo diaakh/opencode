@@ -43,7 +43,10 @@ class NoisyStudentConfig:
     n_rounds: int = 4                 # Nikita: 4 self-train iterations (0.909→0.930)
     pseudo_alpha: float = 1.0         # soft pseudo as target (no hard dilution); labeled rows keep hard
     pseudo_threshold: float = 0.0     # NIKITA: no hard threshold
-    pseudo_power: float = 1.6         # NIKITA: ~1.5–1.8 power sharpening
+    pseudo_power: float = 1.6         # fallback power if no per-round schedule
+    # NIKITA exact per-iteration sharpening powers: 1.0, 1/0.65, 1/0.55, 1/0.6
+    pseudo_power_schedule: tuple = (1.0, 1.53846, 1.81818, 1.66667)
+    mixup_fixed_lambda: float = 0.5   # NIKITA: every sample mixed with a pseudo one at fixed λ=0.5
     pseudo_ratio_cap: float = 1.0     # Nikita mixes every sample with a pseudo one (no cap)
     final_tss: bool = False           # Nikita uses no separate tss stage
     tss_threshold: float = 0.7        # (retained for the 5th-place variant if re-enabled)
@@ -62,6 +65,7 @@ class NoiseSchedule:
     strength: float = 0.1
     # individual aug magnitudes derive from `strength` unless explicitly set
     mixup_alpha: float = field(default=0.0)
+    mixup_fixed_lambda: float = field(default=0.0)  # NIKITA: deterministic λ (0.5) instead of Beta
     embedding_dropout: float = field(default=0.0)
     gaussian_std: float = field(default=0.0)
     time_shift: int = field(default=0)
@@ -72,6 +76,7 @@ class NoiseSchedule:
         return cls(
             strength=s,
             mixup_alpha=s,            # beta(alpha, alpha) mixup on embeddings
+            mixup_fixed_lambda=config.mixup_fixed_lambda,
             embedding_dropout=0.5 * s,
             gaussian_std=0.1 * s,
             time_shift=int(round(2.0 * s)),  # roll windows by up to a couple positions
@@ -82,22 +87,26 @@ class NoiseSchedule:
 
 
 def power_transform(p, threshold: float, power: float):
-    """A6 PowerTransform: zero weak signal, sharpen confident signal. NumPy or torch.
+    """PowerTransform on soft pseudo-labels, clamped to [0,1]. NumPy or torch.
 
-    ``p = p * (p > threshold) + p ** power``  then clamp to [0, 1].
+    threshold <= 0  (NIKITA): PURE power sharpening  ``p ** power``  (no linear term).
+    threshold  > 0  (A6/5th): keep strong signal + sharpen ``p*(p>th) + p**power``.
     """
     try:
         import torch
 
         if isinstance(p, torch.Tensor):
+            if threshold <= 0:
+                return p.pow(power).clamp(0.0, 1.0)
             keep = (p > threshold).to(p.dtype)
-            out = p * keep + p.pow(power)
-            return out.clamp(0.0, 1.0)
+            return (p * keep + p.pow(power)).clamp(0.0, 1.0)
     except Exception:
         pass
     import numpy as np
 
     p = np.asarray(p, dtype=np.float32)
+    if threshold <= 0:
+        return np.clip(np.power(p, power), 0.0, 1.0)
     out = p * (p > threshold).astype(np.float32) + np.power(p, power)
     return np.clip(out, 0.0, 1.0)
 
@@ -107,6 +116,7 @@ def make_soft_targets(
     hard_labels,
     config: NoisyStudentConfig,
     use_tss: bool = False,
+    round_idx: int | None = None,
 ):
     """Blend a (already-averaged) teacher probability with hard labels.
 
@@ -116,7 +126,13 @@ def make_soft_targets(
     Returns the blended soft target, same backend (torch/numpy) as the inputs.
     """
     threshold = config.tss_threshold if use_tss else config.pseudo_threshold
-    power = config.tss_power if use_tss else config.pseudo_power
+    if use_tss:
+        power = config.tss_power
+    elif round_idx is not None and config.pseudo_power_schedule \
+            and round_idx < len(config.pseudo_power_schedule):
+        power = float(config.pseudo_power_schedule[round_idx])   # NIKITA per-iter power
+    else:
+        power = config.pseudo_power
     p = power_transform(teacher_probs, threshold, power)
     alpha = config.pseudo_alpha
     return alpha * p + (1.0 - alpha) * hard_labels
@@ -199,11 +215,14 @@ def mixup_embeddings(embeddings, targets, schedule: NoiseSchedule):
     """Beta-mixup on embeddings + soft targets (returns mixed pair)."""
     import torch
 
-    if schedule.mixup_alpha <= 0 or embeddings.shape[0] < 2:
+    if embeddings.shape[0] < 2 or (schedule.mixup_alpha <= 0 and schedule.mixup_fixed_lambda <= 0):
         return embeddings, targets
-    lam = float(
-        torch.distributions.Beta(schedule.mixup_alpha, schedule.mixup_alpha).sample().item()
-    )
+    if schedule.mixup_fixed_lambda > 0:           # NIKITA: deterministic λ=0.5
+        lam = float(schedule.mixup_fixed_lambda)
+    else:
+        lam = float(
+            torch.distributions.Beta(schedule.mixup_alpha, schedule.mixup_alpha).sample().item()
+        )
     perm = torch.randperm(embeddings.shape[0], device=embeddings.device)
     mixed_x = lam * embeddings + (1.0 - lam) * embeddings[perm]
     mixed_y = lam * targets + (1.0 - lam) * targets[perm]
