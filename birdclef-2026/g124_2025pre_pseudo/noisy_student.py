@@ -33,18 +33,26 @@ from typing import Callable, Sequence
 
 @dataclass
 class NoisyStudentConfig:
-    n_rounds: int = 4                 # A6 sweet spot 3-4 (Nikita 4, 5th 6 incl. tss)
-    pseudo_alpha: float = 0.7         # label = alpha*pseudo + (1-alpha)*hard
-    pseudo_threshold: float = 0.3     # linear term zeroed below this
-    pseudo_power: float = 2.0         # PowerTransform exponent
-    pseudo_ratio_cap: float = 0.4     # max fraction of a batch/dataset that is pseudo
-    final_tss: bool = True            # optional final stricter relabel stage
-    tss_threshold: float = 0.7        # 5th-place pseudo_tss_th
-    tss_power: float = 2.0
+    # Recipe ALIGNED TO NIKITA BABYCH (BC2025 #1, BC2026 #1 LB 0.964) — from the A7
+    # discussion deep-dive, which overrides the earlier war-room defaults:
+    #   * NO hard threshold (threshold=0): pure power-transform SOFT pseudo-labels.
+    #   * power ~1.5–1.8 (he used ~1.6), NOT 2.0.
+    #   * pseudo-labels used as soft targets directly (alpha≈1.0 for unlabeled);
+    #     regularization comes from MANDATORY MixUp of every sample with a random
+    #     pseudo-labeled sample at blend ~0.5 (set via NoiseSchedule.mixup_alpha high).
+    n_rounds: int = 4                 # Nikita: 4 self-train iterations (0.909→0.930)
+    pseudo_alpha: float = 1.0         # soft pseudo as target (no hard dilution); labeled rows keep hard
+    pseudo_threshold: float = 0.0     # NIKITA: no hard threshold
+    pseudo_power: float = 1.6         # NIKITA: ~1.5–1.8 power sharpening
+    pseudo_ratio_cap: float = 1.0     # Nikita mixes every sample with a pseudo one (no cap)
+    final_tss: bool = False           # Nikita uses no separate tss stage
+    tss_threshold: float = 0.7        # (retained for the 5th-place variant if re-enabled)
+    tss_power: float = 1.6
     # noise (augmentation) schedule: strength at round r is base + step*r, capped.
-    noise_base: float = 0.1
-    noise_step: float = 0.1
-    noise_max: float = 0.5
+    # mixup is the PRIMARY regularizer (Nikita) — keep it strong every round.
+    noise_base: float = 0.4
+    noise_step: float = 0.05
+    noise_max: float = 0.6
 
 
 @dataclass
