@@ -72,3 +72,15 @@ remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weigh
   fixed-0.5 mixup, per-round powers), 2 rounds, 4000 soundscapes + focal anchors. Kernel
   `bc26-noisy-student-gpu`; artifact `bc26-ns-student-b0`. This trains ON the test (soundscape)
   domain — the fix the round-0 focal CNN lacked. Blend onto 0.950 base + MEASURE (don't assume).
+
+## b0-blend TIMED OUT (2026-05-30) — V237 base is at the 90-min cliff
+- `bc26-eos9-plus-nsb0` (V237 0.950 base + soundscape-adapted b0 student, w=0.15) → submission
+  **exceeded 90-min runtime** (no score). The dry-run (12 min, no real test audio) hid this because
+  the member rank-blend is a no-op without resolvable test audio.
+- Root cause: the **V237 base pipeline alone runs ~85+ min**; adding any 600-file member is a coin-flip.
+  The focal-CNN version barely fit (0.944); the b0 version tipped over. ⇒ member-blending onto V237
+  is RUNTIME-FRAGILE.
+- FIX for next attempt: make base+member fit 90 min with MARGIN — trim the base (fewer SED folds /
+  lighter TTA) OR run the member cheaper (fewer windows), and VALIDATE the real 600-file runtime via
+  a scale-test before submitting. The orthoblend harness (3-fold SED + Perch, ~59 min) has headroom
+  but its base is weak (0.880) — so the real task is a STRONG base that leaves member headroom.
