@@ -1,0 +1,18 @@
+{
+  "rows": 3,
+  "cols": 235,
+  "model22_alignment": "dry_run_first_3_rows_remapped_from_240",
+  "model51p_alignment": "dry_run_first_3_rows_remapped_from_240",
+  "model74_alignment": "already_sample_aligned",
+  "weights": "0.012*Model_22 + 0.021*Model_51p + 0.967*Model_74",
+  "genus_groups": 29,
+  "class_groups": 4,
+  "prob_min": 0.4614886939525604,
+  "prob_max": 0.5393519997596741,
+  "prob_mean": 0.4889918863773346,
+  "prob_std": 0.012709151022136211,
+  "mean_abs_delta_vs_model74": 0.012569711543619633,
+  "max_abs_delta_vs_model74": 0.024663805961608887,
+  "changed_cells_vs_model74": 702,
+  "method": "Nina EoS.9 repaired final 22/51p/74 weighted blend plus taxonomy smoothing"
+}

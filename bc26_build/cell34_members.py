@@ -46,7 +46,6 @@ _M_NFFT    = 2048
 _M_HOP     = 512
 _M_FMIN    = 20
 _M_FMAX    = 16000
-_M_TOPDB   = 80
 _M_CHUNK_S = 5
 _M_CHUNK_N = _M_SR * _M_CHUNK_S          # 160000
 _M_NCLS    = 234
@@ -61,17 +60,22 @@ def _m_find_ckpt(member):
     """Resolve a member's checkpoint path under /kaggle/input, or None if absent."""
     slug_leaf = member["dataset_slug"].split("/")[-1]
     cf = member.get("checkpoint_file")
+    norm_leaf = slug_leaf.replace("-", "").replace("_", "").lower()
     if cf:
+        # Exact filename, but ONLY if it lives under this member's own dataset
+        # dir (so two members that share a checkpoint name can't collide).
         hits = sorted(_MPath("/kaggle/input").rglob(cf))
-        return str(hits[0]) if hits else None
-    # auto-pick: prefer files under a dir matching the dataset slug leaf
+        own = [h for h in hits if norm_leaf in str(h.parent).replace("-", "").replace("_", "").lower()]
+        pick = own or hits
+        return str(pick[0]) if pick else None
+    # auto-pick: ONLY checkpoints whose path belongs to THIS member's dataset.
+    # Do NOT fall back to unrelated checkpoints -- a missing member must skip,
+    # never silently borrow another member's (e.g. g124) weights.
     cands = []
     for ext in ("*.pt", "*.pth", "*.ckpt"):
         cands.extend(_MPath("/kaggle/input").rglob(ext))
-    if not cands:
-        return None
-    pref = [p for p in cands if slug_leaf.replace("-", "") in str(p).replace("-", "").lower()]
-    pick = sorted(pref or cands)
+    own = [p for p in cands if norm_leaf in str(p).replace("-", "").replace("_", "").lower()]
+    pick = sorted(own)
     return str(pick[0]) if pick else None
 
 
@@ -139,7 +143,7 @@ if _m_run:
     # Replicate the STUDENT's training MelFrontend EXACTLY (train_g124.MelFrontend):
     #   torchaudio.MelSpectrogram(power=2.0)  ->  clamp_min(1e-6).log()  (NATURAL log)
     #   -> per-sample standardize over (freq,time).  Also DC-removes the waveform.
-    # This must match training; do NOT substitute librosa power_to_db (10*log10/top_db).
+    # This must match training; do NOT substitute librosa dB-scaling (10*log10/top_db).
     import torchaudio as _m_ta
     _m_melspec = _m_ta.transforms.MelSpectrogram(
         sample_rate=_M_SR, n_fft=_M_NFFT, hop_length=_M_HOP, n_mels=_M_NMELS,

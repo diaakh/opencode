@@ -1,0 +1,2 @@
+rows,cols,model22_alignment,model51p_alignment,model74_alignment,weights,genus_groups,class_groups,prob_min,prob_max,prob_mean,prob_std,mean_abs_delta_vs_model74,max_abs_delta_vs_model74,changed_cells_vs_model74,method
+3,235,dry_run_first_3_rows_remapped_from_240,dry_run_first_3_rows_remapped_from_240,already_sample_aligned,0.012*Model_22 + 0.021*Model_51p + 0.967*Model_74,29,4,0.4614886939525604,0.5393519997596741,0.4889918863773346,0.012709151022136211,0.012569711543619633,0.024663805961608887,702,Nina EoS.9 repaired final 22/51p/74 weighted blend plus taxonomy smoothing

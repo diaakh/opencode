@@ -1,0 +1,9 @@
+{
+  "rows": 3,
+  "cols": 235,
+  "prob_min": 0.4614886939525604,
+  "prob_max": 0.5393519997596741,
+  "prob_mean": 0.4889918863773346,
+  "prob_std": 0.012709151022136211,
+  "source_public_kernel": "nina2025/birdclef-2026-eos-9"
+}
