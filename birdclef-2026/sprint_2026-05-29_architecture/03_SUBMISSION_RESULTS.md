@@ -142,3 +142,15 @@ independent ensemble pipeline.
   temporal-flip TTA). Also: V237's ~85min is likely INEFFICIENT (public 0.947 runs ~9 min) → our
   "members net-flat after base-trim" was an over-heavy-base artifact, not a law.
 - Confirmed dead-ends: the 25 anonymized son## sonotypes; any Perch-based member (~+0.001 noise).
+
+## ROOT BLOCKER (definitive, 2026-05-31): the V237 base is too slow — STOP trimming, SWITCH base
+- 2nd timeout: `bc26-eos9-birdnet` (3-fold base + BirdNET ~10min) EXCEEDED 90 min (no score). Prior
+  timeout: `eos9-plus-nsb0`. The V237 base alone is ~85 min → it CANNOT host any independent member
+  within budget, and fold-trimming both loses accuracy AND still times out.
+- A9 already said it: public 0.947 pipeline runs in **~9 min**. Our base is ~10x too slow.
+- **PIVOT (the move I kept avoiding):** use a FAST efficient base (the public ~9-min pipeline,
+  ~0.947-0.948) with ~75 min of HEADROOM, then stack MULTIPLE INDEPENDENT members within budget:
+  BirdNET (corr 0.32, TFLite), our OWN focal SED ensemble (b0+nfnet, just trained), BirdMAE — all
+  rank-blended. Fast base slightly lower alone, but multiple independent members net >0.950.
+- Lesson: scale-test the REAL 600-file runtime (run the full pipeline on 200+ train_soundscapes),
+  never estimate from a 5-file selftest — that's what hid both timeouts.
