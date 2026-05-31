@@ -84,3 +84,18 @@ remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weigh
   lighter TTA) OR run the member cheaper (fewer windows), and VALIDATE the real 600-file runtime via
   a scale-test before submitting. The orthoblend harness (3-fold SED + Perch, ~59 min) has headroom
   but its base is weak (0.880) — so the real task is a STRONG base that leaves member headroom.
+
+## DEFINITIVE: noisy-student distillation students do NOT beat 0.950 (2026-05-31)
+| submission | LB |
+|---|---:|
+| EoS9 base (proven) | **0.950** |
+| + focal effv2s CNN (w=0.12) | 0.944 |
+| + soundscape-adapted b0 NS student, 3-fold-SED base (w=0.15) | **0.945** (runtime-safe now) |
+- Both members HURT. The NS students distill the public distilled-SED that's ALREADY in the base →
+  correlated/redundant; the b0's overconfident 43%-positive preds add rank noise. Branch A
+  (add NS students) is DISCONFIRMED. nfnet/effv2s would be the same — stop adding them.
+- The 3-fold-SED trim fixed the timeout (no runtime failure this time).
+- **PIVOT:** the ONLY member our own LOSO validation proved helps is **BirdMAE (+0.004, independent
+  foundation model, NOT a SED distillation)** — never wired into a submission. That's the next lever.
+  Honest ceiling: BirdMAE→~0.954; reaching 0.96 needs Nikita's full from-scratch independent
+  ensemble (multi-day), not these single-public-teacher distillations.
