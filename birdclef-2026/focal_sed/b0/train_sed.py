@@ -271,8 +271,10 @@ def main():
 
     def bce_ls(pred, target):
         # pred in [0,1] (already sigmoid'd in AttBlock). BCE on soft multi-hot.
+        # NOTE: F.binary_cross_entropy is unsafe under autocast, so callers must
+        # invoke this OUTSIDE the autocast region with pred cast to float32.
         target = target * (1 - CFG.label_smoothing) + CFG.label_smoothing / CFG.n_classes
-        pred = pred.clamp(1e-7, 1 - 1e-7)
+        pred = pred.float().clamp(1e-7, 1 - 1e-7)
         return F.binary_cross_entropy(pred, target)
 
     eye = torch.eye(CFG.n_classes, device=device)
@@ -289,7 +291,8 @@ def main():
             x = spec_augment(x, CFG)
             with torch.cuda.amp.autocast(enabled=CFG.use_amp):
                 out = model(x)
-                loss = bce_ls(out, yoh)
+            # BCE is autocast-unsafe -> compute loss in fp32 outside autocast
+            loss = bce_ls(out, yoh)
             opt.zero_grad(set_to_none=True)
             scaler.scale(loss).backward()
             scaler.step(opt); scaler.update(); sched.step()
@@ -308,7 +311,8 @@ def main():
                 y = y.to(device, non_blocking=True)
                 yoh = eye[y]
                 with torch.cuda.amp.autocast(enabled=CFG.use_amp):
-                    out = model(x); loss = bce_ls(out, yoh)
+                    out = model(x)
+                loss = bce_ls(out, yoh)
                 vrun += loss.item() * len(y); n += len(y)
                 correct += (out.argmax(1) == y).sum().item()
         val_loss = vrun / max(1, n); val_acc = correct / max(1, n)
