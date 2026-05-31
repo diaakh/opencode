@@ -51,3 +51,7 @@ bc26_build/
 **/baseout/
 **/v2pull/
 **/vchk/
+bc26_build/
+birdclef-2026/noisy_student_gpu/*_push/
+birdclef-2026/noisy_student_gpu/*_dataset/
+birdclef-2026/noisy_student_gpu/*_artifact/
