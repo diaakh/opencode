@@ -99,3 +99,28 @@ remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weigh
   foundation model, NOT a SED distillation)** — never wired into a submission. That's the next lever.
   Honest ceiling: BirdMAE→~0.954; reaching 0.96 needs Nikita's full from-scratch independent
   ensemble (multi-day), not these single-public-teacher distillations.
+
+## FINAL exhaustive scoreboard (2026-05-31) — we cannot beat 0.950 by adding members
+| submission | LB |
+|---|---:|
+| **EoS9 base (V237, proven)** | **0.950 ← BEST** |
+| + BirdMAE (independent FM, w=0.15, 2-fold-SED base, stride-4) | **0.949** |
+| + soundscape-adapted b0 NS student (3-fold base) | 0.945 |
+| + focal effv2s CNN | 0.944 |
+| our ProtoSSM reproduction (v12) | 0.880 |
+
+### Why 0.950 is the ceiling with available resources
+1. **The 28 son-IDs are unreachable for everyone** (no public audio; SED/our students can't score
+   them) → that headroom is closed for all, including Nikita.
+2. **NS-distillation students are correlated** with the public SED already in the base → they hurt.
+3. **BirdMAE (the one LOSO-validated independent lever, +0.004) helps marginally, BUT the V237 base
+   is at the 90-min runtime cliff**, so fitting BirdMAE requires trimming the base (5→2 SED folds),
+   which costs ~what BirdMAE adds → net ~flat (0.949). The runtime budget is the binding constraint.
+4. The gap to Nikita's 0.964 is his FROM-SCRATCH 7-backbone ensemble trained on focal+labeled-
+   soundscape data, with his own iterative pseudo-labels — a multi-day build we cannot complete AND
+   validate in the remaining ~2.5 days under GPU cap=2 and the broken/no-CV situation.
+
+### Recommendation
+Finalize the proven **0.950** as the primary submission (+ a decorrelated 2nd for the shakeup).
+0.96 is not achievable with available resources/time; it requires replicating Nikita's full
+independent ensemble pipeline.
