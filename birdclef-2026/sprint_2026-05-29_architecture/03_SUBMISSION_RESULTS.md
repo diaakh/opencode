@@ -124,3 +124,21 @@ remains the proven 0.950 base. Do NOT waste slots tuning the weak member's weigh
 Finalize the proven **0.950** as the primary submission (+ a decorrelated 2nd for the shakeup).
 0.96 is not achievable with available resources/time; it requires replicating Nikita's full
 independent ensemble pipeline.
+
+## A9 REFRAME + the near-solution we skipped (2026-05-31)
+- **NEW noisy-student-like method = NOTELA** (source-free test-time adaptation; BN-only adapt on the
+  TEST soundscapes at inference, no labels; `pseudo = p^(1/alpha)·exp((lambda/alpha)·W·P)` — the
+  `p^(1/alpha)` IS Nikita's power-transform + a feature-kNN consistency term). NO public 2026 kernel
+  does it or any TTA → untapped. Adapts the EXISTING model → sidesteps the member-blend runtime cliff.
+- **BIG REFRAME:** highest *public* kernel = **0.948**. Our **0.950 is ALREADY ABOVE the public
+  frontier.** The 0.95→0.966 gap is ENTIRELY private (Nikita 0.966). We're not behind the crowd —
+  we're at the frontier; closing to private-top needs INDEPENDENT signal, not more Perch-correlated members.
+- **HIGHEST-LEVERAGE UNTRIED = add public BirdNET v2.4 TFLite as an independent 3rd model** (50/30/20
+  Proto/SED/BirdNET rank-blend + spike-preservation gate, from the public 0.947 kernel). BirdNET is a
+  FULLY INDEPENDENT detector (NOT a distillation of our SED → escapes the correlated-students trap),
+  and CHEAP (TFLite → no runtime cliff). Public authors get real lift from it. WE NEVER TRIED IT.
+- Cheap companions: drop TH=0.3 → pure power-transform; public post-proc (per-class ens weights
+  mapped .60/unmapped .35, file_confidence^0.4, rank_aware^0.4, hour-prior smoothing, delta-shift+
+  temporal-flip TTA). Also: V237's ~85min is likely INEFFICIENT (public 0.947 runs ~9 min) → our
+  "members net-flat after base-trim" was an over-heavy-base artifact, not a law.
+- Confirmed dead-ends: the 25 anonymized son## sonotypes; any Perch-based member (~+0.001 noise).
